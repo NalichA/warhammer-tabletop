@@ -6,6 +6,7 @@ import { tr } from '../../i18n/index'
 import { EPS } from '../geometry/geometry'
 import { addLog, alive, hasAbility, hasKeyword, isDestroyed, modelDistance, modelHasAbility, profileOf, sidesOf, unitDistance } from '../gameState'
 import { healModel } from './heal'
+import { cawlLoneOperative } from './cawl'
 import type { GameState, ModelState, PlayerId, UnitState } from '../types'
 
 /** Omnissiah's Blessing: the repaired model is within 3″ of the Enginseer. */
@@ -98,9 +99,10 @@ export function blessingFnpByModel(u: UnitState): Record<string, number> | undef
   return ids?.length ? Object.fromEntries(ids.map((id) => [id, BLESSING_FNP])) : undefined
 }
 
-/** Enginseer: a Tech-Priest Enginseer on its own (not leading a unit) within 3″ of a friendly ADEPTUS MECHANICUS VEHICLE
- * has Lone Operative. */
+/** Lone Operative: a Tech-Priest Enginseer on its own (not leading a unit) within 3″ of a friendly ADEPTUS MECHANICUS VEHICLE
+ * (Enginseer), or Belisarius Cawl within 3″ of another friendly ADEPTUS MECHANICUS unit (Mechanicus Bodyguard). */
 export function loneOperative(s: GameState, u: UnitState): boolean {
+  if (cawlLoneOperative(s, u)) return true
   if (u.attached?.length || !hasAbility(u, 'enginseer') || isDestroyed(u)) return false
   return s.units.some((x) => x.owner === u.owner && x.id !== u.id && !isDestroyed(x) && hasKeyword(x, 'VEHICLE') && hasKeyword(x, AM) && unitDistance(u, x) <= ENGINSEER_VEHICLE_RANGE + EPS)
 }

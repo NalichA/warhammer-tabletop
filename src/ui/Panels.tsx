@@ -710,7 +710,7 @@ function UnitActions({ u }: { u: UnitState }) {
   return (
     <div className="flex flex-col gap-2 rounded border border-stone-600 p-2">
       <b>{tr('{name}: actions', { name: u.name })}</b>
-      {game.phase === 'command' && !actions.some((a) => a.id.startsWith('bless:')) && <p className="text-xs text-stone-300">{tr('In the Command phase the units have nothing to do — press “End phase”.')}</p>}
+      {game.phase === 'command' && !actions.some((a) => a.id.startsWith('bless:') || a.id.startsWith('canticle:')) && <p className="text-xs text-stone-300">{tr('In the Command phase the units have nothing to do — press “End phase”.')}</p>}
       {game.phase === 'movement' && <MoveControls u={u} />}
       {game.phase === 'shooting' && <ShootControls u={u} />}
       {game.phase === 'charge' && !u.chargeDeclared && !game.pendingCharge && <ChargeForecastView u={u} />}

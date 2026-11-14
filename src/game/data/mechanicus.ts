@@ -4,7 +4,8 @@ import { tr } from '../../i18n/index'
 // Adeptus Mechanicus, 11th-edition datasheets as transcribed by Wahapedia (checked 2026-11-09):
 //   Tech-Priest Dominus, Tech-Priest Manipulus, Skitarii Rangers, Skitarii Vanguard, Kataphron Breachers,
 //   Kataphron Destroyers, Sicarian Infiltrators, Kastelan Robots; and (checked 2026-11-12) Serberys Sulphurhounds,
-//   Ironstrider Ballistarii, Onager Dunecrawler, Corpuscarii Electro-Priests; and (checked 2026-11-14) Tech-Priest Enginseer.
+//   Ironstrider Ballistarii, Onager Dunecrawler, Corpuscarii Electro-Priests; and (checked 2026-11-14) Tech-Priest Enginseer,
+//   Belisarius Cawl.
 //   See docs/mechanicus.md.
 
 const anti = (keyword: string, roll: number) => ({ keyword, roll })
@@ -46,6 +47,23 @@ export const MECHANICUS_WEAPONS: Record<string, Weapon> = {
   servoArm: {
     id: 'servoArm', name: tr('Servo-arm'),
     profiles: [{ name: '', range: 'melee', attacks: 1, skill: 4, s: 6, ap: -2, d: 2, keywords: { extraAttacks: true } }],
+  },
+  // ---- Belisarius Cawl (Melta 3 of the solar atomiser is not modelled: the engine has no Melta yet)
+  solarAtomiser: {
+    id: 'solarAtomiser', name: tr('Solar Atomiser'),
+    profiles: [{ name: '', range: 18, attacks: 3, skill: 2, s: 14, ap: -4, d: 0, randomD: 'D6', keywords: {} }],
+  },
+  arcScourge: {
+    id: 'arcScourge', name: tr('Arc Scourge'),
+    profiles: [{ name: '', range: 'melee', attacks: 4, skill: 2, s: 5, ap: -1, d: 1, keywords: { anti: anti('VEHICLE', 4), devastatingWounds: true, extraAttacks: true } }],
+  },
+  cawlAxe: {
+    id: 'cawlAxe', name: tr('Cawl’s Omnissian Axe'),
+    profiles: [{ name: '', range: 'melee', attacks: 4, skill: 2, s: 8, ap: -2, d: 2, keywords: {} }],
+  },
+  mechadendriteHive: {
+    id: 'mechadendriteHive', name: tr('Mechadendrite Hive'),
+    profiles: [{ name: '', range: 'melee', attacks: 0, randomA: '2D6', skill: 3, s: 4, ap: 0, d: 1, keywords: { extraAttacks: true } }],
   },
   // ---- Tech-Priest Manipulus
   magnarailLance: {
@@ -299,6 +317,11 @@ export const MECHANICUS_PROFILES: Record<string, ModelProfile> = {
     id: 'techEnginseer', name: tr('Tech-Priest Enginseer'), m: 6, t: 4, sv: 3, w: 3, ld: 7, oc: 1, invuln: 5, baseMm: 32, character: true,
     weapons: ['enginseerPistol', 'enginseerAxe', 'servoArm'],
   },
+  // Belisarius Cawl: the oval 105×70 mm base is drawn as an 86 mm round one of the same area (like the Carnifex)
+  belisariusCawl: {
+    id: 'belisariusCawl', name: tr('Belisarius Cawl'), m: 8, t: 8, sv: 2, w: 10, ld: 6, oc: 3, invuln: 4, baseMm: 86, character: true,
+    weapons: ['solarAtomiser', 'arcScourge', 'cawlAxe', 'mechadendriteHive'],
+  },
   techManipulusCannon: { id: 'techManipulusCannon', name: tr('Tech-Priest Manipulus with transonic cannon'), ...dominus, weapons: ['transonicCannon', 'omnissianStaff'] },
   // Rangers: precision rifles. Alpha has the optional Alpha combat weapon, one Ranger carries an Omnispex.
   rangerAlpha: { id: 'rangerAlpha', name: tr('Ranger Alpha'), ...skitarii, weapons: ['galvanicRifle', 'alphaCombatWeapon', 'skitariiCCW'] },
@@ -381,6 +404,12 @@ export const MECHANICUS_DATASHEETS: Record<string, Datasheet> = {
     abilities: ['doctrina', 'omnissiahsBlessing', 'enginseer', 'vengeanceOmnissiah'],
     leads: TECH_PRIEST_LEADS,
     description: tr('Field mechanic: in your Command phase repairs a friendly Mechanicus model within 3″ (D3 wounds; a vehicle also gets Feel No Pain 5+); next to a vehicle it is hard to shoot.'),
+  },
+  belisariusCawl: {
+    id: 'belisariusCawl', name: tr('Belisarius Cawl'), faction: 'adeptus_mechanicus',
+    keywords: ['MONSTER', 'CHARACTER', 'MOBILE', 'EPIC HERO', 'IMPERIUM', 'TECH-PRIEST', 'CULT MECHANICUS', 'BELISARIUS CAWL', AM],
+    abilities: ['doctrina', 'canticles', 'mechanicusBodyguard', 'selfRepair'],
+    description: tr('Archmagos Dominus, a named hero (one per army): a solar atomiser and three melee weapons; every Command phase a canticle — re-rolls against one enemy, +1 OC and Leadership nearby, or Stealth nearby; repairs himself.'),
   },
   rangers: {
     id: 'rangers', name: tr('Skitarii Rangers'), faction: 'adeptus_mechanicus',
@@ -480,5 +509,8 @@ export const MECHANICUS_ABILITY_TEXT: Record<string, string> = {
   omnissiahsBlessing: tr('Omnissiah’s Blessing: in your Command phase pick one other friendly Adeptus Mechanicus model within 3″ of the Enginseer: it regains up to D3 lost wounds, and a VEHICLE also gets Feel No Pain 5+ until your next Command phase. Each model can be picked once per Command phase. [If you do not pick, the game repairs the most damaged model at the end of the phase, vehicles first.]'),
   enginseer: tr('Enginseer: while not leading a unit and within 3″ of a friendly Adeptus Mechanicus VEHICLE, the Enginseer has Lone Operative — enemy models farther than 12″ cannot shoot it.'),
   vengeanceOmnissiah: tr('Vengeance for the Omnissiah: once a friendly Adeptus Mechanicus VEHICLE model is destroyed within 12″ of the Enginseer, its Omnissian axe has 6 attacks until the end of the battle.'),
+  canticles: tr('Canticles of the Omnissiah: in your Command phase choose one canticle until your next one. Invocation of Machine Vengeance — pick an enemy unit: friendly Adeptus Mechanicus models re-roll hit rolls against it. Mantra of Discipline — friendly Adeptus Mechanicus units within 6″ get +1 OC per model and +1 to Battle-shock and Leadership tests. Shroudpsalm — friendly Adeptus Mechanicus units within 6″ have Stealth. [The game picks a canticle at the start of the phase, before the Battle-shock tests; you can change it until the end of the phase. Mantra of Discipline also gives Cawl BATTLELINE; that keyword is not given.]'),
+  mechanicusBodyguard: tr('Mechanicus Bodyguard: while Cawl is within 3″ of another friendly Adeptus Mechanicus unit, he has Lone Operative — enemy models farther than 12″ cannot shoot him.'),
+  selfRepair: tr('Self-repair Mechanisms: at the start of your Command phase Cawl regains up to D3 lost wounds.'),
   roboticBodyguard: tr('Robotic Bodyguard: the Datasmith leading the unit gets Feel No Pain 4+. [Not implemented: the Cybernetica Datasmith is not in the roster.]'),
 }

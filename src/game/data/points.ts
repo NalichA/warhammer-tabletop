@@ -67,6 +67,7 @@ export const POINTS: Record<string, PointsBracket[]> = {
   techDominus: [{ models: 1, points: 65 }],
   techManipulus: [{ models: 1, points: 60 }],
   techEnginseer: [{ models: 1, points: 55 }],
+  belisariusCawl: [{ models: 1, points: 220 }],
   rangers: [{ models: 10, points: 85 }],
   vanguard: [{ models: 10, points: 90 }],
   breachers: [{ models: 3, points: 150 }, { models: 6, points: 320 }],

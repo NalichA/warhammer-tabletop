@@ -510,6 +510,18 @@ function techPriest(kind: TechKind): string {
     <circle cx="48" cy="50" r="9.5" ${rd(0.55)}/>${skull(51, 50, 0.9)}${gear}`, false)
 }
 
+/** Belisarius Cawl: a big robed Archmagos under a double cog halo, a fan of mechadendrites behind, the solar atomiser to the
+ * front (a tube with a star at its muzzle), the Omnissian axe above and the arc scourge below. */
+function cawl(): string {
+  const dendrites = [18, 34, 50, 66, 82].map((y) => `<path d="M30 50 Q14 ${(y + 50) / 2} 6 ${y}" fill="none" stroke-width="1.6"/><circle cx="6" cy="${y}" r="2" ${f(BRASS, 0.5)}/>`).join('')
+  return base(BRASS, `${cog(42, 50, 34, 16)}${cog(42, 50, 24, 10)}${dendrites}
+    <path d="M24 20 Q6 38 8 50 Q6 62 24 80 Q58 74 62 50 Q58 26 24 20 Z" ${rd(0.45)}/><path d="M28 36 L54 64 M54 36 L28 64" fill="none" opacity="0.4"/>
+    <circle cx="48" cy="50" r="11" ${rd(0.6)}/>${skull(51, 50, 1)}
+    <rect x="56" y="46" width="30" height="8" rx="3" ${f(BRASS, 0.35)}/><path d="M90 50 L96 50 M93 44 L93 56 M89 46 L97 54 M89 54 L97 46" stroke-width="1.6"/>
+    <line x1="50" y1="34" x2="80" y2="16" stroke-width="2.6"/><path d="M74 8 L88 14 L82 26 L74 20 Z" ${f(BRASS, 0.5)}/>
+    <path d="M50 66 Q66 78 84 76" fill="none" stroke-width="2"/><path d="M84 72 L90 76 L84 80" fill="none" stroke-width="1.6"/>`, false)
+}
+
 type SkitGear = 'rifle' | 'longRifle' | 'carbine' | 'arc' | 'caliver' | 'pistol'
 
 /** Skitarii: slim hooded trooper with a mechanical skull; rifle length shows the role (Rangers long, Vanguard short). */
@@ -778,6 +790,7 @@ const SVGS: Record<string, string> = {
   techDominus: techPriest('dominus'),
   techManipulus: techPriest('manipulus'),
   techEnginseer: techPriest('enginseer'),
+  belisariusCawl: cawl(),
   rangerAlpha: skitarii('longRifle', { alpha: true }),
   ranger: skitarii('longRifle'),
   rangerOmnispex: skitarii('longRifle', { omnispex: true }),

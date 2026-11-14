@@ -156,6 +156,9 @@ export type AbilityId =
   | 'omnissiahsBlessing'
   | 'enginseer'
   | 'vengeanceOmnissiah'
+  | 'canticles'
+  | 'mechanicusBodyguard'
+  | 'selfRepair'
   // Orks beyond the Introductory Set
   | 'mightIsRight'
   | 'intimidatingMotivation'
@@ -310,6 +313,10 @@ export interface UnitState {
   blessingFnp?: string[]
   /** Vengeance for the Omnissiah: Enginseer models of this unit whose Omnissian axe has 6 attacks for the rest of the battle */
   vengeance?: string[]
+  /** Canticles of the Omnissiah (Belisarius Cawl): the canticle chosen in its owner's last Command phase (absent until chosen) */
+  canticle?: Canticle
+  /** Invocation of Machine Vengeance: the enemy unit chosen as the Machine Vengeance target (with that canticle only) */
+  vengeanceTargetId?: string
   /** Wraith Form: enemy units this unit moved over in its last Normal move this turn (absent when none or used) */
   wraithTargets?: string[]
   /** Grenade Pack Flyover already used this turn (absent otherwise) */
@@ -438,6 +445,8 @@ export interface PlayerState {
 }
 
 export type Imperative = 'protector' | 'conqueror'
+/** Belisarius Cawl's Canticles of the Omnissiah: one is chosen at the start of each of its owner's Command phases */
+export type Canticle = 'machineVengeance' | 'mantraDiscipline' | 'shroudpsalm'
 /** Space Marines Combat Doctrines (army rule) */
 export type CombatDoctrine = 'assault' | 'devastator' | 'tactical'
 /** Tyranids Invasion Fleet detachment rule */
@@ -627,6 +636,8 @@ export type Command =
   | { type: 'divineWork'; unitId: string }
   /** Omnissiah's Blessing (Tech-Priest Enginseer in `unitId`): repair model `modelId` of friendly unit `targetId` */
   | { type: 'blessing'; unitId: string; targetId: string; modelId: string }
+  /** Canticles of the Omnissiah (Belisarius Cawl in `unitId`); `targetId` = the enemy unit for Machine Vengeance */
+  | { type: 'canticle'; unitId: string; canticle: Canticle; targetId?: string }
   | { type: 'bombSquig'; unitId: string; targetId: string }
   | { type: 'engrammatic'; unitId: string; targetId: string }
   | { type: 'wraithForm'; unitId: string; targetId: string }
