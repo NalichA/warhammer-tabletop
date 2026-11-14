@@ -1344,6 +1344,7 @@ const catalog: Catalog = {
   "Monstrous Bonesword and Lash Whip": "Kościany miecz i bicz (Monstrous Bonesword and Lash Whip)",
   "Monstrous Scything Talons": "Szpony-kosy (Monstrous Scything Talons)",
   "More options that do not repay the CP ({length})": "Więcej opcji, które nie zwracają CP ({length})",
+  "More useful options ({length})": "Więcej opłacalnych opcji ({length})",
   "More: {label}": "Więcej: {label}",
   "Most dangerous to": "Najgroźniejszy dla",
   "Most dangerous to it": "Najgroźniejsze dla niego",

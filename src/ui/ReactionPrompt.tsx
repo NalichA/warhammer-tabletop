@@ -30,6 +30,9 @@ const WINDOW_TITLE: Record<ReactionWindow, string> = {
   afterAttacks: tr('Losses — reanimation?'),
 }
 
+/** How many worthwhile reactions are shown at once; the others wait behind «More useful options». */
+const SHOWN = 3
+
 function windowText(g: GameState) {
   const t = WINDOW_TEXT[g.reaction!.window]
   return typeof t === 'function' ? t(g) : t
@@ -62,50 +65,59 @@ export function ReactionPrompt({ game, human }: { game: GameState; human: Player
   if ((!useful.length && !rapid.length) || !game.reaction || arriving) return null
   const cp = game.players[human].cp
   const rest = options.filter((o) => !o.worth)
+  const more = useful.slice(SHOWN)
+  const card = (o: (typeof useful)[number], i: number) => (
+    <li key={o.title} className="rounded border border-stone-600 p-2">
+      <div className="font-semibold">{o.title}</div>
+      <div className="text-sm text-stone-300">{o.why}</div>
+      <button ref={i === 0 ? primary : undefined} className="btn btn-primary mt-2 w-full" onClick={() => dispatch(o.cmd)}>{tr('Use ({cost} CP)', { cost: STRATAGEMS[o.cmd.id].cost })}</button>
+    </li>
+  )
+  // a big army can have a reaction for almost every unit: the title and «Skip» stay on screen, the options scroll
   return (
     <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/60 p-3">
-      <div className="w-full max-w-md rounded-lg border border-amber-500 bg-stone-800 p-4 shadow-xl" role="dialog" aria-modal="true" aria-labelledby="reaction-title">
+      <div className="flex max-h-full w-full max-w-md flex-col rounded-lg border border-amber-500 bg-stone-800 p-4 shadow-xl" role="dialog" aria-modal="true" aria-labelledby="reaction-title">
         <h2 id="reaction-title" className="text-lg font-bold">{WINDOW_TITLE[game.reaction.window]}</h2>
         <p className="mt-1 text-sm text-stone-300">{tr('{windowText} You have {cp} CP.', { windowText: windowText(game), cp })}</p>
-        <ul className="mt-3 space-y-2">
-          {useful.map((o, i) => (
-            <li key={o.title} className="rounded border border-stone-600 p-2">
-              <div className="font-semibold">{o.title}</div>
-              <div className="text-sm text-stone-300">{o.why}</div>
-              <button ref={i === 0 ? primary : undefined} className="btn btn-primary mt-2 w-full" onClick={() => dispatch(o.cmd)}>{tr('Use ({cost} CP)', { cost: STRATAGEMS[o.cmd.id].cost })}</button>
-            </li>
-          ))}
-        </ul>
-        {rapid.length > 0 && (
-          <ul className="mt-3 space-y-2">
-            {rapid.map((c, i) => {
-              const u = game.reserves?.find((x) => x.id === c.unitId)
-              return (
-                <li key={c.unitId} className="rounded border border-violet-600 p-2">
-                  <div className="font-semibold">{tr('Rapid Ingress: {name}', { name: u?.name })}</div>
-                  <div className="text-sm text-stone-300">{tr('The unit arrives from Reserves now, before the opponent’s shooting: at the board edge, more than 8″ from enemies.')}</div>
-                  <div className="mt-2 flex gap-1">
-                    <button ref={i === 0 && !useful.length ? primary : undefined} className="btn btn-primary flex-1" onClick={() => dispatch(c)}>{tr('To the nearest objective ({cp} CP)', { cp: RAPID_INGRESS_CP })}</button>
-                    <button className="btn flex-1" onClick={() => startArrival(c.unitId, true)}>{tr('📍 Choose a spot')}</button>
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-        {rest.length > 0 && (
-          <details className="mt-2 text-xs text-stone-400">
-            <summary>{tr('More options that do not repay the CP ({length})', { length: rest.length })}</summary>
-            <ul className="mt-1 space-y-1">
-              {rest.map((o) => (
-                <li key={o.title}>
-                  <b>{o.title}</b> — {o.why} <button className="ml-1 text-sky-300 underline" onClick={() => dispatch(o.cmd)}>{tr('use anyway')}</button>
-                </li>
-              ))}
+        <div className="mt-3 min-h-0 flex-1 overflow-y-auto pr-1" data-testid="reaction-options">
+          {useful.length > 0 && <ul className="space-y-2">{useful.slice(0, SHOWN).map(card)}</ul>}
+          {more.length > 0 && (
+            <details className="mt-2">
+              <summary className="cursor-pointer text-sm text-amber-300">{tr('More useful options ({length})', { length: more.length })}</summary>
+              <ul className="mt-2 space-y-2">{more.map((o, i) => card(o, i + SHOWN))}</ul>
+            </details>
+          )}
+          {rapid.length > 0 && (
+            <ul className="mt-3 space-y-2">
+              {rapid.map((c, i) => {
+                const u = game.reserves?.find((x) => x.id === c.unitId)
+                return (
+                  <li key={c.unitId} className="rounded border border-violet-600 p-2">
+                    <div className="font-semibold">{tr('Rapid Ingress: {name}', { name: u?.name })}</div>
+                    <div className="text-sm text-stone-300">{tr('The unit arrives from Reserves now, before the opponent’s shooting: at the board edge, more than 8″ from enemies.')}</div>
+                    <div className="mt-2 flex gap-1">
+                      <button ref={i === 0 && !useful.length ? primary : undefined} className="btn btn-primary flex-1" onClick={() => dispatch(c)}>{tr('To the nearest objective ({cp} CP)', { cp: RAPID_INGRESS_CP })}</button>
+                      <button className="btn flex-1" onClick={() => startArrival(c.unitId, true)}>{tr('📍 Choose a spot')}</button>
+                    </div>
+                  </li>
+                )
+              })}
             </ul>
-          </details>
-        )}
-        <button className="btn mt-3 w-full" onClick={() => { setMessage(null); dispatch({ type: 'passReaction' }) }}>{tr('Skip')}</button>
+          )}
+          {rest.length > 0 && (
+            <details className="mt-2 text-xs text-stone-400">
+              <summary>{tr('More options that do not repay the CP ({length})', { length: rest.length })}</summary>
+              <ul className="mt-1 space-y-1">
+                {rest.map((o) => (
+                  <li key={o.title}>
+                    <b>{o.title}</b> — {o.why} <button className="ml-1 text-sky-300 underline" onClick={() => dispatch(o.cmd)}>{tr('use anyway')}</button>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </div>
+        <button className="btn mt-3 w-full shrink-0" onClick={() => { setMessage(null); dispatch({ type: 'passReaction' }) }}>{tr('Skip')}</button>
         {left !== null && <p className="mt-2 text-center text-xs text-amber-300" role="timer">{tr('⏱ {left} s — then the turn moves on without a reaction.', { left })}</p>}
       </div>
     </div>
