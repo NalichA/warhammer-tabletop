@@ -23,7 +23,7 @@ The lists come from the datasheets. Only the units the game has are listed.
 
 | Army | Character | Kind | Can join |
 |---|---|---|---|
-| Adeptus Mechanicus | Tech-Priest Dominus, Tech-Priest Manipulus | Leader | Skitarii Rangers, Skitarii Vanguard, Kataphron Breachers, Kataphron Destroyers, Corpuscarii Electro-Priests |
+| Adeptus Mechanicus | Tech-Priest Dominus, Tech-Priest Manipulus, Tech-Priest Enginseer | Leader | Skitarii Rangers, Skitarii Vanguard, Kataphron Breachers, Kataphron Destroyers, Corpuscarii Electro-Priests |
 | Space Marines | Captain | Leader | Intercessors, Assault Intercessors, Hellblasters, Infernus, Bladeguard Veterans |
 | Space Marines | Lieutenant | Support | the same |
 | Orks | Warboss | Leader | Boyz, Nobz |

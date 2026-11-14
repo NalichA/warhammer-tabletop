@@ -40,6 +40,8 @@ export interface AttackContext {
   rerollWounds?: 'ones' | 'all'
   /** Feel No Pain X+: each point of damage is ignored on a D6 of X or more (e.g. Lord of the Machine Cult) */
   fnp?: number
+  /** Feel No Pain of single models (Omnissiah's Blessing: a repaired vehicle); the better of this and `fnp` counts */
+  fnpByModel?: Record<string, number>
   /** Precision: wounds are allocated to a CHARACTER model of the target first */
   precision?: boolean
   /** why BS/WS is improved (skillWorsen < 0), for the dice log */
@@ -297,13 +299,17 @@ export function resolveGroup(
   let saveRerolled = false
   let repulsed = 0
   const grid = p.range !== 'melee' && datasheetOf(target).abilities.includes('repulsorGrid')
-  /** Feel No Pain: roll for every point of damage, returns the damage that goes through */
-  const throughFnp = (n: number) => {
-    if (!ctx.fnp) return n
+  /** Feel No Pain: roll for every point of damage to model `m` (any model of the unit when absent), returns the damage that goes through */
+  let fnpShown: number | undefined
+  const throughFnp = (n: number, m?: ModelState) => {
+    const own = m ? ctx.fnpByModel?.[m.id] : undefined
+    const fnp = own && ctx.fnp ? Math.min(own, ctx.fnp) : own ?? ctx.fnp
+    if (!fnp) return n
+    fnpShown = fnpShown === undefined ? fnp : Math.min(fnpShown, fnp)
     let left = n
     for (let k = 0; k < n; k++) {
       const v = roller.d6()
-      const ok = v >= ctx.fnp
+      const ok = v >= fnp
       fdice.push({ value: v, success: ok })
       if (ok) left--
     }
@@ -336,7 +342,7 @@ export function resolveGroup(
         if (again !== null) v = again
         dmg += v
       }
-      dmg = throughFnp(Math.max(1, dmg + damageModFor(ctx, m)))
+      dmg = throughFnp(Math.max(1, dmg + damageModFor(ctx, m)), m)
       killed += dmg > 0 ? applyDamage(target, dmg, m) : 0
       damage += before - m.wounds
     }
@@ -350,6 +356,17 @@ export function resolveGroup(
       const v = rollDie(roller, p.randomD)
       ddice.push({ value: v, success: true })
       mw += v
+    }
+    // a Feel No Pain of single models: each mortal wound is rolled for the model it is allocated to
+    if (ctx.fnpByModel) {
+      for (let k = 0; k < mw && !isDestroyed(target); k++) {
+        const m = pickModelForDamage(target)!
+        if (!throughFnp(1, m)) continue
+        const before = m.wounds
+        killed += applyDamage(target, 1, m)
+        damage += before - m.wounds
+      }
+      continue
     }
     mw = throughFnp(mw)
     for (let k = 0; k < mw && !isDestroyed(target); k++) {
@@ -371,6 +388,6 @@ export function resolveGroup(
     dice: ddice,
     note: tr('{value}{damage} damage; destroyed: {killed}; models left in the unit: {length}', { value: ctx.damageMod ? tr('damage {damageMod} (Dread \'Ard), not less than 1; ', { damageMod: ctx.damageMod }) : '', damage, killed, length: alive(target).length }),
   })
-  if (fdice.length) steps.push({ meta: { kind: 'fnp' }, label: 'Feel No Pain', target: `${ctx.fnp}+`, dice: fdice, note: tr('Each lost wound is cancelled on {fnp}+ (“Feel No Pain”): {length} of {length2} cancelled.', { fnp: ctx.fnp, length: fdice.filter((d) => d.success).length, length2: fdice.length }) })
+  if (fdice.length) steps.push({ meta: { kind: 'fnp' }, label: 'Feel No Pain', target: `${fnpShown}+`, dice: fdice, note: tr('Each lost wound is cancelled on {fnp}+ (“Feel No Pain”): {length} of {length2} cancelled.', { fnp: fnpShown, length: fdice.filter((d) => d.success).length, length2: fdice.length }) })
   return { steps, summary, killed, damage, repulsed }
 }

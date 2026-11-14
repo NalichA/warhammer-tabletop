@@ -492,14 +492,19 @@ function cog(cx: number, cy: number, r: number, teeth = 10): string {
 const skull = (x: number, y: number, s = 1) =>
   `<g transform="translate(${x} ${y}) scale(${s})"><circle r="6.5" ${f(BRASS, 0.3)}/><circle cx="2.4" cy="-2.2" r="1.5" fill="${RED}" stroke="none"/><circle cx="2.4" cy="2.2" r="1.5" fill="${RED}" stroke="none"/><path d="M5 -2 V2" stroke-width="1"/></g>`
 
-type TechKind = 'dominus' | 'manipulus'
+type TechKind = 'dominus' | 'manipulus' | 'enginseer'
 
-/** Tech-Priest: robed adept under a cog halo, servo-arms behind, axe (Dominus) or magnarail lance (Manipulus). */
+/** Tech-Priest: robed adept under a cog halo, servo-arms behind, axe (Dominus), magnarail lance (Manipulus), or a short axe
+ * and a big servo-arm with a wrench claw over a spare cog (Enginseer). */
 function techPriest(kind: TechKind): string {
   const arms = `<path d="M34 40 Q16 30 10 18 M34 60 Q16 70 10 82 M34 50 Q14 50 8 50" fill="none" stroke-width="1.8"/><circle cx="10" cy="18" r="2.4" ${f(BRASS, 0.5)}/><circle cx="10" cy="82" r="2.4" ${f(BRASS, 0.5)}/>`
   const gear = kind === 'dominus'
     ? `<line x1="52" y1="62" x2="88" y2="40" stroke-width="2.6"/><path d="M82 30 L94 38 L86 48 L80 40 Z" ${f(BRASS, 0.5)}/><rect x="56" y="64" width="16" height="4.5" rx="2" ${f(BRASS, 0.3)}/>`
-    : `<rect x="50" y="44" width="46" height="6" rx="2" ${f(BRASS, 0.3)}/><rect x="62" y="40" width="22" height="3" ${f(BRASS, 0.4)}/><line x1="50" y1="64" x2="74" y2="64" stroke-width="2.4"/><circle cx="76" cy="64" r="3.2" ${f(BRASS, 0.5)}/>`
+    : kind === 'enginseer'
+      ? `<line x1="54" y1="64" x2="76" y2="72" stroke-width="2.4"/><path d="M74 66 L84 70 L80 80 L72 76 Z" ${f(BRASS, 0.5)}/>
+        <path d="M40 30 Q56 14 74 22 L82 30" fill="none" stroke-width="3"/><circle cx="74" cy="22" r="2.6" ${f(BRASS, 0.5)}/>
+        <path d="M82 30 L90 24 M82 30 L90 36" fill="none" stroke-width="2.4"/>${cog(88, 46, 7, 8)}<rect x="56" y="58" width="12" height="4" rx="1.5" ${f(BRASS, 0.3)}/>`
+      : `<rect x="50" y="44" width="46" height="6" rx="2" ${f(BRASS, 0.3)}/><rect x="62" y="40" width="22" height="3" ${f(BRASS, 0.4)}/><line x1="50" y1="64" x2="74" y2="64" stroke-width="2.4"/><circle cx="76" cy="64" r="3.2" ${f(BRASS, 0.5)}/>`
   return base(BRASS, `${cog(44, 50, 30, 12)}${arms}
     <path d="M28 24 Q10 40 12 50 Q10 60 28 76 Q54 70 58 50 Q54 30 28 24 Z" ${rd(0.42)}/><path d="M30 40 L52 60 M52 40 L30 60" fill="none" opacity="0.4"/>
     <circle cx="48" cy="50" r="9.5" ${rd(0.55)}/>${skull(51, 50, 0.9)}${gear}`, false)
@@ -772,6 +777,7 @@ const SVGS: Record<string, string> = {
   windriderCannon: windrider('cannon'),
   techDominus: techPriest('dominus'),
   techManipulus: techPriest('manipulus'),
+  techEnginseer: techPriest('enginseer'),
   rangerAlpha: skitarii('longRifle', { alpha: true }),
   ranger: skitarii('longRifle'),
   rangerOmnispex: skitarii('longRifle', { omnispex: true }),

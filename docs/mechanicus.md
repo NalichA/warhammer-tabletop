@@ -14,7 +14,7 @@ Everything targets **11th edition**, like the rest of the project (see [research
 
 `src/game/__tests__/mechanicus.test.ts` pins every characteristic and weapon profile below, so a typo in the data fails a test.
 
-**Repair.** The eight datasheets above contain **no repair or healing ability** in 11th edition (the Dominus and Manipulus pages list only Lord of the Machine Cult, Data-spike, Galvanic Field and Defend the Divine Work). No repair mechanic was invented. The healing code the Necrons use (`rules/heal.ts`) is not wired to this army.
+**Repair.** The eight datasheets above contain **no repair or healing ability** in 11th edition (the Dominus and Manipulus pages list only Lord of the Machine Cult, Data-spike, Galvanic Field and Defend the Divine Work). The army's repair comes from the **Tech-Priest Enginseer** (added 14.11.2026, see below), which uses the shared healing code in `rules/heal.ts`.
 
 ## Training roster and legality
 
@@ -94,6 +94,32 @@ Four more datasheets for the army builder, transcribed from Wahapedia on 12.11.2
 
 Oval bases are drawn as round ones: Sulphurhounds 50 mm, Ironstriders 90 mm. Each model has its own blueprint portrait (`src/assets/tokenArt.ts`).
 
+## Tech-Priest Enginseer (14.11.2026)
+
+The only Mechanicus datasheet in the game that repairs vehicles. Source: [Wahapedia, 11th edition](https://wahapedia.ru/wh40k11ed/factions/adeptus-mechanicus/Tech-priest-Enginseer), read on 2026-11-14 (the community transcription, not the official PDF); points from the same page (Munitorum Field Manual figure).
+
+| | M | T | Sv | W | Ld | OC | Inv | Base | Points |
+|---|---|---|---|---|---|---|---|---|---|
+| Tech-Priest Enginseer | 6″ | 4 | 3+ | 3 | 7+ | 1 | 5+ | 32 mm | 1 model — 55 |
+
+Weapons: Mechanicus pistol (12″, A1, BS 3+, S6, AP −1, D1, Pistol, Devastating Wounds), Omnissian axe (melee, A3, WS 4+, S6, AP −2, D2), servo-arm (melee, A1, WS 4+, S6, AP −2, D2, Extra Attacks). No wargear options. Keywords: INFANTRY, CHARACTER, IMPERIUM, CULT MECHANICUS, TECH-PRIEST, ENGINSEER, ADEPTUS MECHANICUS.
+
+**Leader** of the units the game has from its list: Skitarii Rangers, Skitarii Vanguard, Kataphron Breachers, Kataphron Destroyers, Corpuscarii Electro-Priests (the datasheet also lists Fulgurite Electro-Priests, Hastarii, Secutarii and the Servitor Battleclade, which are not in the game). In the army builder it joins a unit automatically like the other Tech-Priests, or stays on its own ([leaders.md](leaders.md)).
+
+| Ability | In the game | Implementation |
+|---|---|---|
+| **Omnissiah's Blessing**: in your Command phase pick one friendly Mechanicus model within 3″; it regains up to D3 lost wounds; a VEHICLE also gets Feel No Pain 5+ until your next Command phase; each model once per Command phase | Command `blessing` (unit panel button “🔧 Omnissiah's Blessing: …”, one per model it can repair). The D3 roll goes to the dice log and a line to the battle log. If the player ends the Command phase without using it, the game repairs the best target itself: the most damaged vehicle, else the most damaged model; an undamaged vehicle still gets the Feel No Pain | `rules/enginseer.ts` (`blessingProblem`, `blessingOptions`, `bless`), `healModel` in `rules/heal.ts`, `blessingApply` / `autoBlessings` in `engine.ts`; `UnitState.blessed`, `blessedModels`, `blessingFnp` |
+| Feel No Pain 5+ of the repaired vehicle | Only that model rolls it (`AttackContext.fnpByModel`), against normal damage and Devastating Wounds; the better of it and the unit's own Feel No Pain counts | `blessingFnpByModel`, `defenceMods`, `resolveGroup` |
+| **Enginseer**: Lone Operative while within 3″ of a friendly Mechanicus VEHICLE, unless leading a unit | Only enemy models within 12″ of it can shoot it; models farther away are skipped, and if none is close the shot is refused with the reason | `loneOperative`, `shootPlan` |
+| **Vengeance for the Omnissiah**: a friendly Mechanicus VEHICLE model destroyed within 12″ gives the Omnissian axe 6 attacks until the end of the battle | Checked after every command; each wreck is looked at once (`PlayerState.wrecks`, only in armies with an Enginseer), so walking up to an old wreck later does not count | `noteWrecks`, `meleeSetup`; `UnitState.vengeance` |
+
+Choices and approximations:
+
+- **The Enginseer does not repair itself.** The rule says “a model within 3″ of this model”; the game reads it as another model. It can repair a model of the unit it leads.
+- **Auto-repair at the end of the Command phase** if the player did not pick: the rule gives a free choice and there is no reason to skip it, so a forgotten repair is not lost. The log marks it “(picked automatically)”.
+- **Mortal wounds** outside Devastating Wounds (Hazardous, Deadly Demise and the like) ignore the Feel No Pain, as for every Feel No Pain in the game.
+- The presets do not include the Enginseer, so the AI fingerprints (golden, aiEquivalence) do not change. An AI army built with one uses the blessing in its Command phase on the same best target.
+
 ## Faction mechanics
 
 Each is a reusable rule keyed on a datasheet ability, not a faction special case in the engine (the only faction-named logic is the army rule's own state, `PlayerState.imperative`). Everything is tested in `mechanicus.test.ts`; the Marines/Orks golden-master test still passes unchanged.
@@ -113,6 +139,7 @@ Each is a reusable rule keyed on a datasheet ability, not a faction special case
 | **Repulsor Grid**: each unmodified 6 on the Kastelans' save rolls against ranged attacks gives the shooter 1 mortal wound after it has shot (before Deadly Demise and the winner check) | Kastelans | `ResolveResult.repulsed`, `apply('shoot')` |
 | **Data-spike**: at the start of the Fight phase, a Dominus engaged with an enemy VEHICLE rolls D6: 4+ = D6 mortal wounds and the vehicle's melee WS is 1 worse until the end of the phase | Dominus | `fightStartMechanicus`, `UnitState.spiked` |
 | **Defend the Divine Work** (once per battle): 4+ invulnerable save | Manipulus | command `divineWork`, `PlayerState.divineUsed`, `UnitState.warded`, `invulnOverrideOf` |
+| **Omnissiah's Blessing**, **Lone Operative**, **Vengeance for the Omnissiah** | Enginseer | see the Enginseer section above |
 | **Infiltrators** in deployment: anywhere more than 8″ from the enemy zone and enemy models | Sicarians | `deploymentProblem` |
 | **Deadly Demise 1** | Kastelans | existing |
 
@@ -148,6 +175,7 @@ The same utility AI (`ai/ai.ts`) with faction weights, both levels (**“Beginne
 - **Tech-Priests** are inside the units they lead. A Tech-Priest on its own keeps its character value (×1.5), which keeps it out of danger.
 - **Valuable platforms.** Kataphron Breachers, Destroyers and Kastelans have a ×1.3 loss weight (the AI protects them).
 - **Sicarians hunt** (they behave like the Skorpekh Destroyers: they move toward the enemy rather than the nearest objective).
+- **Omnissiah's Blessing** is used in the Command phase on the most damaged vehicle within 3″, else the most damaged model (`blessingOptions`). The AI does not yet move the Enginseer toward its vehicles on purpose.
 - **Defend the Divine Work** is used once, at the end of the Movement phase, when the Manipulus's unit is engaged or the expected incoming damage is at least 60 % of its remaining wounds (“Standard”), or when engaged (“Beginner”).
 - Feel No Pain is included in the AI's expected damage, so enemies understand that a unit led by the Dominus is tougher.
 
@@ -158,7 +186,7 @@ See [armies.md](armies.md#adeptus-mechanicus-balance) for the numbers. Measured 
 ## UI and artwork
 
 - The faction is selectable on the start screen (six cards) and as an opponent; the card shows the original **faction emblem** (a brass cog around a mechanical skull, `mechanicusEmblem()` in `tokenArt.ts`), four unit portraits and the real composition (“Total models: 36”).
-- **Original SVG portraits** for all 21 model profiles in `src/assets/tokenArt.ts` (blueprint style, brass lines on deep-red robes): cog-haloed Tech-Priests with servo-arms (axe / magnarail lance), hooded Skitarii with mechanical skull faces (long rifles for Rangers, short carbines and a radiation ring for Vanguard, an Alpha crest), hulking tracked Kataphron (arc rifle and claw / torsion cannon / hydraulic claw / grav-cannons / culverin and flamer), lean Sicarians (blade or taser goad), boxy Kastelans with cog chest plates. Resolution order is unchanged: photo → manifest → SVG. No Games Workshop images or traced artwork; see [assets.md](assets.md).
+- **Original SVG portraits** for all 21 model profiles in `src/assets/tokenArt.ts` (blueprint style, brass lines on deep-red robes): cog-haloed Tech-Priests with servo-arms (axe / magnarail lance), hooded Skitarii with mechanical skull faces (long rifles for Rangers, short carbines and a radiation ring for Vanguard, an Alpha crest), hulking tracked Kataphron (arc rifle and claw / torsion cannon / hydraulic claw / grav-cannons / culverin and flamer), lean Sicarians (blade or taser goad), boxy Kastelans with cog chest plates, and the Enginseer with a short axe and a big servo-arm holding a wrench claw over a spare cog. Resolution order is unchanged: photo → manifest → SVG. No Games Workshop images or traced artwork; see [assets.md](assets.md).
 - Each datasheet has a short **role description** shown on the unit card (optional `Datasheet.description`, rendered for every faction that has one), the weapon table with keywords, and the ability texts, including the approximation and “not implemented” notes.
 - A human Mechanicus player picks the Imperative with two buttons in the Command phase (action panel “Doctrina Imperatives” and the board toolbar “🛡 Protector” / “⚔ Conqueror”) and uses Defend the Divine Work from the Manipulus's action list or the toolbar. The header shows the active Imperative; the guidance line and the Command-phase help mention it.
 
@@ -170,4 +198,4 @@ See [armies.md](armies.md#adeptus-mechanicus-balance) for the numbers. Measured 
 
 ## Tests
 
-`mechanicus.test.ts` (107 tests): every characteristic and weapon profile, keywords, composition and loadout limits, deployment in either seat against every opponent, each mechanic above with scripted dice (Imperatives incl. timing, FNP rolls, leader approximation, Divine Work lifetime, Objective Scouted, Rad-saturation, Breaching Command, cover / Ignores Cover / Omnispex / Stealth, Voices, Neurostatic, Repulsor Grid incl. a shooter dying, Data-spike), movement limits, shooting and fighting, Infiltrators in deployment, persistence, and the AI (Imperative choice, Tech-Priest positioning, Divine Work, whole battles against Marines and Orks with legal commands only). `armyBattles.test.ts`: complete AI-vs-AI battles for all 15 pairings through the real match pipeline. `ui/armies.test.tsx`: the selection screen, a human playing Mechanicus through the store, the Imperative and Divine Work buttons, the unit card text.
+`mechanicus.test.ts` (107 tests): every characteristic and weapon profile, keywords, composition and loadout limits, deployment in either seat against every opponent, each mechanic above with scripted dice (Imperatives incl. timing, FNP rolls, leader approximation, Divine Work lifetime, Objective Scouted, Rad-saturation, Breaching Command, cover / Ignores Cover / Omnispex / Stealth, Voices, Neurostatic, Repulsor Grid incl. a shooter dying, Data-spike), movement limits, shooting and fighting, Infiltrators in deployment, persistence, and the AI (Imperative choice, Tech-Priest positioning, Divine Work, whole battles against Marines and Orks with legal commands only). `armyBattles.test.ts`: complete AI-vs-AI battles for all 15 pairings through the real match pipeline. `ui/armies.test.tsx`: the selection screen, a human playing Mechanicus through the store, the Imperative and Divine Work buttons, the unit card text. `enginseer.test.ts`: the Enginseer's profile, points and builder attachment, the blessing (range, once per phase, D3 cap, Feel No Pain lifetime and rolls, auto-repair, the unit panel action, inside an attached unit, the AI), Lone Operative and Vengeance for the Omnissiah.

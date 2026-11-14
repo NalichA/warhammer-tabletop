@@ -39,6 +39,7 @@ const only = (s: GameState, ...ids: string[]) => {
 const STATS: Record<string, [number, number, number, number, number, number, number | undefined, number]> = {
   techDominus: [6, 4, 2, 4, 7, 1, 5, 50],
   techManipulus: [6, 4, 2, 4, 7, 1, 5, 50],
+  techEnginseer: [6, 4, 3, 3, 7, 1, 5, 32],
   ranger: [6, 3, 4, 1, 7, 2, 5, 25],
   rangerAlpha: [6, 3, 4, 1, 7, 2, 5, 25],
   rangerOmnispex: [6, 3, 4, 1, 7, 2, 5, 25],
@@ -67,6 +68,9 @@ const WEAPON_STATS: Record<string, string> = {
   volkiteBlaster: '24|3|3|5|0|2|devastatingWounds',
   eradicationRay: '24|D3|3|6|-1|1| // 12|D3|3|6|-2|2|',
   omnissianAxe: 'melee|4|3|6|-2|2|',
+  enginseerPistol: '12|1|3|6|-1|1|closeQuarters,devastatingWounds',
+  enginseerAxe: 'melee|3|4|6|-2|2|',
+  servoArm: 'melee|1|4|6|-2|2|extraAttacks',
   magnarailLance: '36|1|3|7|-2|3|heavy',
   transonicCannon: '12|D6|-|4|0|2|devastatingWounds,torrent',
   omnissianStaff: 'melee|4|3|6|-1|2|',
@@ -125,9 +129,9 @@ describe('Adeptus Mechanicus datasheets', () => {
     expect(anti('torsionCannon')).toEqual({ keyword: 'INFANTRY', roll: 2 })
     expect(anti('radiumCarbine')).toEqual({ keyword: 'INFANTRY', roll: 4 })
   })
-  it('all thirteen datasheets exist for the faction, every ability has Russian rules text, every weapon exists', () => {
+  it('all fourteen datasheets exist for the faction, every ability has Russian rules text, every weapon exists', () => {
     const sheets = Object.values(DATASHEETS).filter((d) => d.faction === AM)
-    expect(sheets.map((d) => d.id).sort()).toEqual(['breachers', 'destroyers', 'dunerider', 'electroPriests', 'ironstriders', 'kastelans', 'onager', 'rangers', 'sicarians', 'sulphurhounds', 'techDominus', 'techManipulus', 'vanguard'])
+    expect(sheets.map((d) => d.id).sort()).toEqual(['breachers', 'destroyers', 'dunerider', 'electroPriests', 'ironstriders', 'kastelans', 'onager', 'rangers', 'sicarians', 'sulphurhounds', 'techDominus', 'techEnginseer', 'techManipulus', 'vanguard'])
     for (const d of sheets) {
       expect(d.keywords).toContain('ADEPTUS MECHANICUS')
       expect(d.description, d.id).toBeTruthy()

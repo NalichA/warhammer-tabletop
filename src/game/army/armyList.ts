@@ -87,6 +87,7 @@ export const COMPOSITION: Record<string, { leader?: string; pattern: string[] }>
   swoopingHawks: { leader: 'hawkExarch', pattern: ['swoopingHawk'] },
   techDominus: { pattern: ['techDominus'] },
   techManipulus: { pattern: ['techManipulus'] },
+  techEnginseer: { pattern: ['techEnginseer'] },
   rangers: { leader: 'rangerAlpha', pattern: ['ranger', 'ranger', 'rangerArc', 'ranger', 'ranger', 'rangerCaliver', 'ranger', 'rangerOmnispex', 'ranger'] },
   vanguard: { leader: 'vanguardAlpha', pattern: ['vanguard', 'vanguard', 'vanguardArc', 'vanguard', 'vanguard', 'vanguardCaliver', 'vanguard', 'vanguard', 'vanguard'] },
   breachers: { pattern: ['breacher', 'breacherTorsion', 'breacherHydraulic'] },

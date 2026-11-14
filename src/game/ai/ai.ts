@@ -14,6 +14,7 @@ import { moveProblem, planMove } from '../rules/movement'
 import { EXPLOSIVES_DICE, STRATAGEMS } from '../rules/stratagems'
 import { aiArrivalTarget, arrivalSpot, canDeepStrike, reservesOf } from '../rules/reserves'
 import { disembarkSpot, embarkedOf } from '../rules/transports'
+import { blessingOptions } from '../rules/enginseer'
 import { aiDiscards, SECONDARY, secondaryGoals } from '../rules/secondaries'
 import { inTerritory, MISSION_ACTION, objectiveWorth, PRIMARY, SABOTAGE_TERRITORY_BONUS } from '../rules/missions'
 import { reactionAdvice } from '../reactionAdvice'
@@ -479,6 +480,14 @@ export function decide(s: GameState, level: AiLevel = 'standard'): AiDecision | 
           .filter((f) => validate(s, { type: 'engrammatic', unitId: u.id, targetId: f.id }).ok)
           .sort((a, b) => Number(s.objectives.some((o) => unitNearObjective(b, o))) - Number(s.objectives.some((o) => unitNearObjective(a, o))) || alive(b).length - alive(a).length)[0]
         if (freed) return { cmd: { type: 'engrammatic', unitId: u.id, targetId: freed.id }, explanation: tr('{fac}: “{name}” removes Battle-shock from “{name2}” (Engrammatic Logic).', { fac, name: u.name, name2: freed.name }) }
+      }
+      // Omnissiah's Blessing (Tech-Priest Enginseer): repair the most damaged vehicle nearby, else the most damaged model
+      for (const u of mine) {
+        const best = blessingOptions(s, u)[0]
+        if (best) {
+          const lost = profileOf(best.model).w - best.model.wounds
+          return { cmd: { type: 'blessing', unitId: u.id, targetId: best.target.id, modelId: best.model.id }, explanation: tr('{fac}: “{name}” repairs {model} of “{unit}” (Omnissiah’s Blessing, {lost} wounds lost).', { fac, name: u.name, model: profileOf(best.model).name, unit: best.target.name, lost }) }
+        }
       }
       if (me === 'marines' && level !== 'beginner') {
         const d = chooseDoctrine(s, me)
