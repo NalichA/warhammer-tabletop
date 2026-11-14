@@ -6,13 +6,14 @@ import { rollDie, rollMany, type Roller } from './dice/dice'
 import { dist, withinRange, EPS, add, sub, scale, len, sweptCircleHits } from './geometry/geometry'
 import {
   alphaWarrior, attackToughness, battlelineSupport, feelNoPainOf, nobleLeads, ENGRAMMATIC_RANGE, psychicGuidance, GRENADE_PACK_RANGE, hasWargear, holdScoutedObjectives, imperativeOf, invulnOverrideOf, isLed, leadingAbility, modelDatasheetId, modelHasAbility, neurostaticMod,
-  addLog, alive, atHalfStrength, CHARGE_RANGE, checkCoherency, CONSOLIDATE, datasheetOf, engagedUnits, ENGAGEMENT_RANGE,
+  addLog, alive, atHalfStrength, canticleAura, CHARGE_RANGE, checkCoherency, CONSOLIDATE, datasheetOf, engagedUnits, ENGAGEMENT_RANGE,
   enemiesOf, findUnit, fmt, hasAbility, hasAbilityAll, hasKeyword, inSynapseRange, isDestroyed, isEngaged, isFlyer, isMV, modelDistance, modelEngagedWith,
   other, PILE_IN, profileOf, radiusOf, sidesOf, SYNAPSE_RANGE, unitDistance, unitNearObjective, unitsOf,
   updateObjectiveControl, weaponsOf, OBJECTIVE_MARKER_MM,
 } from './gameState'
-import { healUnit } from './rules/heal'
+import { healModel, healUnit } from './rules/heal'
 import { bless, blessingFnpByModel, blessingOptions, blessingProblem, LONE_OPERATIVE_RANGE, loneOperative, noteWrecks, resetBlessings, VENGEANCE_ATTACKS } from './rules/enginseer'
+import { CANTICLE_NAME, canticleProblem, cawlLoneOperative, chooseCanticle, clearCanticles, machineVengeance, selfRepairing, setCanticle, vengeanceTargets } from './rules/cawl'
 import { disembark, disembarkProblem, embark, embarkedOf, embarkProblem, emergencyDisembark, firingDeckWeapons, passengersOf, removeEmptyDedicated } from './rules/transports'
 import { aiArrivalTarget, arrivalProblem, arrivalSpot, arrive, expireReserves, reservesOf } from './rules/reserves'
 import { applySecondary, secondaryCommandStart, secondaryProblem, secondaryTurnEnd } from './rules/secondaries'
@@ -281,7 +282,9 @@ export function shootPlan(
   const lone = loneOperative(s, target)
   const loneReach = (m: ModelState) => Math.min(...alive(target).map((t) => modelDistance(m, t))) - (opts.assumeReach ?? 0) <= LONE_OPERATIVE_RANGE + EPS
   if (lone && !alive(unit).some(loneReach))
-    return { ...plan, problem: tr('Lone Operative: “{name}” stands next to a friendly vehicle and can be shot only from within {LONE_OPERATIVE_RANGE}″.', { name: target.name, LONE_OPERATIVE_RANGE }) }
+    return { ...plan, problem: cawlLoneOperative(s, target)
+      ? tr('Lone Operative: “{name}” stands next to friendly units and can be shot only from within {LONE_OPERATIVE_RANGE}″.', { name: target.name, LONE_OPERATIVE_RANGE })
+      : tr('Lone Operative: “{name}” stands next to a friendly vehicle and can be shot only from within {LONE_OPERATIVE_RANGE}″.', { name: target.name, LONE_OPERATIVE_RANGE }) }
 
   const byKey = new Map<string, AttackGroup & { ctx: AttackContext }>()
   let anyVisible = false
@@ -369,7 +372,7 @@ export function shootPlan(
     return { ...plan, problem: plan.skipped.length && closest < Infinity ? tr('No weapon can shoot: the nearest visible target model is at {fmt}". {item}', { fmt: fmt(closest), item: plan.skipped[0] }) : tr('No suitable weapon.') }
 
   // Stealth: the target always has the benefit of cover against ranged attacks
-  plan.cover = hasCover(s, plan.firingModels, target) || hasAbilityAll(target, 'stealth') || hasBuff(target, 'smokescreen')
+  plan.cover = hasCover(s, plan.firingModels, target) || hasAbilityAll(target, 'stealth') || hasBuff(target, 'smokescreen') || canticleAura(s, target, 'shroudpsalm')
   const omnispex = hasWargear(unit, 'omnispex')
   const bolter = hasAbility(unit, 'boltDiscipline') && s.objectives.some((o) => unitNearObjective(unit, o) || unitNearObjective(target, o))
   const runts = !!opts.useAmmoRunts && hasAbility(unit, 'ammoRunts') && !unit.ammoRuntsUsed
@@ -392,6 +395,8 @@ export function shootPlan(
     // Swift Demise (Windriders): re-roll hit rolls of 1; any failed hit if the target is the closest eligible one
     let rerollHits: AttackContext['rerollHits'] = bonus.rerollHits
     if (hasAbility(unit, 'swiftDemise')) rerollHits = isClosestTarget(s, unit, target) ? 'all' : 'ones'
+    // Invocation of Machine Vengeance (Belisarius Cawl): re-roll hit rolls against the chosen enemy unit
+    if (machineVengeance(s, unit, target)) { rerollHits = 'all'; g.notes.push(tr('Machine Vengeance: re-roll hits')) }
     if (bonus.rerollHits) g.notes.push(bonus.rerollHits === 'all' ? tr('Breaching Command: re-roll hits') : tr('Breaching Command: re-roll 1s'))
     // Ignores Cover (weapon keyword or Omnispex) cancels the cover bonus; Protector improves BS by 1
     if (alphaWarrior(s, unit) && !(g.profile.keywords.sustainedHits ?? 0)) {
@@ -513,8 +518,10 @@ export function meleeSetup(s: GameState, unit: UnitState, target: UnitState, p0:
   if (bonus.rerollHits) notes.push(bonus.rerollHits === 'all' ? tr('Breaching Command: re-roll hits') : tr('Breaching Command: re-roll 1s'))
   if (bonus.galvanic) notes.push('Galvanic Field: Lethal Hits')
   // Whirling Onslaught (Skorpekh Destroyers): re-roll hit rolls of 1, or any hit roll after a charge
-  const rerollHits: AttackContext['rerollHits'] = hasAbility(unit, 'whirlingOnslaught') ? (unit.charged ? 'all' : 'ones') : bonus.rerollHits
-  if (rerollHits) notes.push(rerollHits === 'all' ? tr('Whirling Onslaught: re-roll hits') : tr('Whirling Onslaught: re-roll 1s'))
+  const vengeance = machineVengeance(s, unit, target)
+  const rerollHits: AttackContext['rerollHits'] = vengeance ? 'all' : hasAbility(unit, 'whirlingOnslaught') ? (unit.charged ? 'all' : 'ones') : bonus.rerollHits
+  if (vengeance) notes.push(tr('Machine Vengeance: re-roll hits'))
+  else if (rerollHits) notes.push(rerollHits === 'all' ? tr('Whirling Onslaught: re-roll hits') : tr('Whirling Onslaught: re-roll 1s'))
   const ctx: AttackContext = {
     hitMod, hitModNotes, skillWorsen,
     ...(skillNote ? { skillNote } : {}),
@@ -764,6 +771,10 @@ export function validate(s: GameState, cmd: Command): Validation {
       const p = blessingProblem(s, unit, findUnit(s, cmd.targetId), cmd.modelId)
       return p ? fail(p) : OK
     }
+    case 'canticle': {
+      const p = canticleProblem(s, unit, cmd.canticle, cmd.targetId)
+      return p ? fail(p) : OK
+    }
     case 'engrammatic': {
       if (!hasAbility(unit, 'engrammaticLogic')) return fail(tr('This unit does not have Engrammatic Logic.'))
       if (unit.engrammaticUsed) return fail(tr('Engrammatic Logic has already been used in this battle (once per battle).'))
@@ -975,15 +986,17 @@ function leadershipRoll(s: GameState, u: UnitState, r: Roller, mod = 0) {
   const synapse = inSynapseRange(s, u)
   const dice = rollMany(r, synapse ? 3 : 2)
   const interference = neurostaticMod(s, u)
-  const total = dice.reduce((a, b) => a + b, 0) + mod + interference
+  // Mantra of Discipline (Belisarius Cawl): +1 to Battle-shock and Leadership tests
+  const discipline = canticleAura(s, u, 'mantraDiscipline') ? 1 : 0
+  const total = dice.reduce((a, b) => a + b, 0) + mod + interference + discipline
   const ld = psychicGuidance(s, u) ? Math.min(6, unitLd(u)) : unitLd(u)
-  return { dice, total, ld, pass: total >= ld, label: `${synapse ? '3D6 (Synapse)' : '2D6'}${interference ? tr(' (interference {interference})', { interference }) : ''}` }
+  return { dice, total, ld, pass: total >= ld, label: `${synapse ? '3D6 (Synapse)' : '2D6'}${interference ? tr(' (interference {interference})', { interference }) : ''}${discipline ? tr(' +1 (Mantra of Discipline)') : ''}` }
 }
 
 /** Chance that this unit fails its Battle-shock test (same dice and modifiers as `leadershipRoll`). */
 export function shockFailChance(s: GameState, u: UnitState): number {
   const n = inSynapseRange(s, u) ? 3 : 2
-  const mod = neurostaticMod(s, u)
+  const mod = neurostaticMod(s, u) + (canticleAura(s, u, 'mantraDiscipline') ? 1 : 0)
   const ld = psychicGuidance(s, u) ? Math.min(6, unitLd(u)) : unitLd(u)
   let fails = 0
   for (let i = 0; i < 6 ** n; i++) {
@@ -997,6 +1010,7 @@ export function shockFailChance(s: GameState, u: UnitState): number {
 function commandPhase(s: GameState, r: Roller) {
   // Omnissiah's Blessing lasts until the start of its player's next Command phase
   resetBlessings(s, s.activePlayer)
+  cawlCommandStart(s, r)
   // a combat doctrine lasts until the start of its player's next Command phase
   if (s.players[s.activePlayer].doctrine) s.players[s.activePlayer].doctrine = null
   if (s.activePlayer === 'adeptus_mechanicus' && s.round >= 2 && s.round <= 5 && detachmentOn(s, s.activePlayer)) radFallout(s, r)
@@ -1120,6 +1134,33 @@ function autoBlessings(s: GameState, r: Roller) {
   for (const u of unitsOf(s, s.activePlayer)) {
     const best = blessingOptions(s, u)[0]
     if (best) blessingApply(s, u, best.target, best.model.id, r, true)
+  }
+}
+
+/** The log line of the canticle Cawl's unit `u` sings now. */
+function canticleLine(s: GameState, u: UnitState, why: string) {
+  const target = u.vengeanceTargetId ? findUnit(s, u.vengeanceTargetId) : undefined
+  return tr('{name}: Canticles of the Omnissiah — {canticle}{target}{why}.', {
+    name: u.name, canticle: CANTICLE_NAME[u.canticle!], target: target ? tr(' against “{name}”', { name: target.name }) : '', why,
+  })
+}
+
+/** Belisarius Cawl at the start of his Command phase: the last canticles end, Self-repair Mechanisms (D3 wounds), and the
+ * game picks a canticle so it counts for the Battle-shock tests; the player can change it until the end of the phase. */
+function cawlCommandStart(s: GameState, r: Roller) {
+  clearCanticles(s, s.activePlayer)
+  for (const { u, m } of selfRepairing(s, s.activePlayer)) {
+    const v = rollDie(r, 'D3')
+    const healed = healModel(m, v)
+    pushDice(s, tr('Self-repair Mechanisms: {name}', { name: u.name }), [{ label: 'D3', target: '—', dice: [{ value: v, success: true }], note: tr('Up to {v} lost wounds: {healed} restored.', { v, healed }) }],
+      tr('{name}: Self-repair Mechanisms — {healed} wounds restored.', { name: u.name, healed }))
+    addLog(s, tr('{name}: Self-repair Mechanisms — D3 = {v}, wounds restored: {healed}.', { name: u.name, v, healed }), 'minimal')
+  }
+  for (const u of unitsOf(s, s.activePlayer)) {
+    if (!hasAbility(u, 'canticles')) continue
+    const c = chooseCanticle(s, u)
+    setCanticle(u, c.canticle, c.targetId)
+    addLog(s, canticleLine(s, u, tr(' (picked automatically: {why}; it can be changed in this phase)', { why: c.why })), 'minimal')
   }
 }
 
@@ -1415,6 +1456,12 @@ export function apply(state: GameState, cmd: Command, r: Roller): GameState {
     case 'blessing':
       blessingApply(s, findUnit(s, cmd.unitId)!, findUnit(s, cmd.targetId)!, cmd.modelId, r, false)
       break
+    case 'canticle': {
+      const u = findUnit(s, cmd.unitId)!
+      setCanticle(u, cmd.canticle, cmd.targetId)
+      addLog(s, canticleLine(s, u, ''), 'minimal')
+      break
+    }
     case 'divineWork': {
       const u = findUnit(s, cmd.unitId)!
       s.players[u.owner].divineUsed = true
@@ -1797,6 +1844,13 @@ export function unitActions(s: GameState, unitId: string): ActionInfo[] {
         : tr('🔧 Omnissiah’s Blessing: {model} of “{unit}” (Feel No Pain 5+)', { model: profileOf(o.model).name, unit: o.target.name }),
       { type: 'blessing', unitId, targetId: o.target.id, modelId: o.model.id })
     }
+  if (s.phase === 'command' && hasAbility(u, 'canticles') && s.activePlayer === u.owner) {
+    for (const t of vengeanceTargets(s, u).slice(0, 3))
+      if (!(u.canticle === 'machineVengeance' && u.vengeanceTargetId === t.id))
+        add(`canticle:machineVengeance:${t.id}`, tr('⚙ Canticle: Machine Vengeance against “{name}” (re-roll hits)', { name: t.name }), { type: 'canticle', unitId, canticle: 'machineVengeance', targetId: t.id })
+    if (u.canticle !== 'mantraDiscipline') add('canticle:mantraDiscipline', tr('⚙ Canticle: Mantra of Discipline (+1 OC and Leadership within 6″)'), { type: 'canticle', unitId, canticle: 'mantraDiscipline' })
+    if (u.canticle !== 'shroudpsalm') add('canticle:shroudpsalm', tr('⚙ Canticle: Shroudpsalm (Stealth within 6″)'), { type: 'canticle', unitId, canticle: 'shroudpsalm' })
+  }
   if (hasAbility(u, 'defendDivineWork')) add('divineWork', tr('Defend the Divine Work (4+ invulnerable, once per battle)'), { type: 'divineWork', unitId })
   if (s.phase === 'shooting') {
     const act = s.mission && PRIMARY[s.mission.primary].action

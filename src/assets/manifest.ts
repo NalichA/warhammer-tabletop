@@ -95,6 +95,7 @@ export const TOKENS: Record<string, TokenStyle> = {
   techDominus: { fill: '#7d1d1d', stroke: '#e8b04a', text: '#ffffff', label: tr('Dm') },
   techManipulus: { fill: '#7d1d1d', stroke: '#e8b04a', text: '#ffffff', label: tr('Mp') },
   techEnginseer: { fill: '#7d1d1d', stroke: '#e8b04a', text: '#ffffff', label: tr('En') },
+  belisariusCawl: { fill: '#5e1414', stroke: '#f0c060', text: '#ffffff', label: tr('Cawl') },
   rangerAlpha: { fill: '#8a1f1f', stroke: '#e8b04a', text: '#ffffff', label: tr('ARg') },
   ranger: { fill: '#9a2a2a', stroke: '#f1d9a6', text: '#ffffff', label: tr('Rg') },
   rangerOmnispex: { fill: '#9a2a2a', stroke: '#e8b04a', text: '#ffffff', label: tr('RgO') },

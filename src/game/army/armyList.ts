@@ -30,7 +30,11 @@ export interface ArmyList {
 }
 
 /** Copies of one datasheet allowed in a list: 3, or 6 for BATTLELINE (the usual "rule of three"). */
-export const maxCopies = (datasheetId: string) => (DATASHEETS[datasheetId]?.keywords.includes('BATTLELINE') ? 6 : 3)
+/** Copies of one datasheet in an army: an EPIC HERO is unique, BATTLELINE up to 6, the rest up to 3. */
+export const maxCopies = (datasheetId: string) => {
+  const kw = DATASHEETS[datasheetId]?.keywords ?? []
+  return kw.includes('EPIC HERO') ? 1 : kw.includes('BATTLELINE') ? 6 : 3
+}
 
 /** Datasheets a faction can take, in the order they appear in the data. */
 export const datasheetsOf = (faction: PlayerId) => Object.values(DATASHEETS).filter((d) => d.faction === faction)
@@ -88,6 +92,7 @@ export const COMPOSITION: Record<string, { leader?: string; pattern: string[] }>
   techDominus: { pattern: ['techDominus'] },
   techManipulus: { pattern: ['techManipulus'] },
   techEnginseer: { pattern: ['techEnginseer'] },
+  belisariusCawl: { pattern: ['belisariusCawl'] },
   rangers: { leader: 'rangerAlpha', pattern: ['ranger', 'ranger', 'rangerArc', 'ranger', 'ranger', 'rangerCaliver', 'ranger', 'rangerOmnispex', 'ranger'] },
   vanguard: { leader: 'vanguardAlpha', pattern: ['vanguard', 'vanguard', 'vanguardArc', 'vanguard', 'vanguard', 'vanguardCaliver', 'vanguard', 'vanguard', 'vanguard'] },
   breachers: { pattern: ['breacher', 'breacherTorsion', 'breacherHydraulic'] },

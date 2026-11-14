@@ -1,6 +1,6 @@
 import { DATASHEETS, PROFILES, WEAPONS } from './data/datasheets'
 import { baseRadius, edgeDistance, EPS, withinRange, circlePolygonDistance } from './geometry/geometry'
-import type { Datasheet, GameState, ModelProfile, ModelState, Objective, PlayerId, TerrainKind, UnitState, Vec } from './types'
+import type { Canticle, Datasheet, GameState, ModelProfile, ModelState, Objective, PlayerId, TerrainKind, UnitState, Vec } from './types'
 import { DECIMAL_MARK, tr } from '../i18n/index'
 
 export const SCHEMA_VERSION = 1
@@ -284,6 +284,13 @@ const chittered = (s: GameState, u: UnitState) =>
 export const irradiated = (s: GameState, u: UnitState) =>
   !hasKeyword(u, 'VEHICLE') && s.units.some((e) => e.owner !== u.owner && hasAbility(e, 'radSaturation') && !isDestroyed(e) && unitDistance(u, e) <= RAD_RANGE + EPS)
 
+/** Belisarius Cawl's aura canticles (Mantra of Discipline, Shroudpsalm) reach friendly ADEPTUS MECHANICUS units within 6″. */
+export const CANTICLE_RANGE = 6
+/** Unit `u` is within 6″ of a living friendly Belisarius Cawl who sings canticle `c` (Cawl's own unit included). */
+export const canticleAura = (s: GameState, u: UnitState, c: Canticle) =>
+  hasKeyword(u, 'ADEPTUS MECHANICUS') && !isDestroyed(u)
+  && s.units.some((x) => x.owner === u.owner && x.canticle === c && !isDestroyed(x) && hasAbility(x, 'canticles') && unitDistance(u, x) <= CANTICLE_RANGE + EPS)
+
 export function objectiveLevels(s: GameState, o: Objective): Record<PlayerId, number> {
   const lv = Object.fromEntries(sidesOf(s).map((p) => [p, 0])) as Record<PlayerId, number>
   for (const u of s.units) {
@@ -291,9 +298,11 @@ export function objectiveLevels(s: GameState, o: Objective): Record<PlayerId, nu
     const near = alive(u).some((m) => modelInObjectiveRange(m, o))
     const shaved = near && chittered(s, u)
     const rad = near && irradiated(s, u)
+    // Mantra of Discipline (Belisarius Cawl): +1 OC for each model of the unit
+    const discipline = near && canticleAura(s, u, 'mantraDiscipline')
     for (const m of alive(u)) {
       if (!modelInObjectiveRange(m, o)) continue
-      let oc = profileOf(m).oc
+      let oc = profileOf(m).oc + (discipline ? 1 : 0)
       if (shaved && oc > 0) oc = Math.max(1, oc - 1)
       if (rad) oc = Math.max(0, oc - 1)
       lv[u.owner] += oc
