@@ -153,6 +153,9 @@ export type AbilityId =
   | 'stealth'
   | 'voicesInTheCode'
   | 'neurostaticInterference'
+  | 'omnissiahsBlessing'
+  | 'enginseer'
+  | 'vengeanceOmnissiah'
   // Orks beyond the Introductory Set
   | 'mightIsRight'
   | 'intimidatingMotivation'
@@ -299,6 +302,14 @@ export interface UnitState {
   disrupted?: boolean
   /** Engrammatic Logic already used (once per battle; absent until then) */
   engrammaticUsed?: boolean
+  /** Omnissiah's Blessing: the Enginseer of this unit has used it in this Command phase (absent otherwise) */
+  blessed?: boolean
+  /** Omnissiah's Blessing: models of this unit already picked in this Command phase (each once per phase; absent when none) */
+  blessedModels?: string[]
+  /** Omnissiah's Blessing: VEHICLE models of this unit with Feel No Pain 5+ until their owner's next Command phase */
+  blessingFnp?: string[]
+  /** Vengeance for the Omnissiah: Enginseer models of this unit whose Omnissian axe has 6 attacks for the rest of the battle */
+  vengeance?: string[]
   /** Wraith Form: enemy units this unit moved over in its last Normal move this turn (absent when none or used) */
   wraithTargets?: string[]
   /** Grenade Pack Flyover already used this turn (absent otherwise) */
@@ -405,6 +416,9 @@ export interface PlayerState {
   imperative?: Imperative | null
   /** Adeptus Mechanicus: Defend the Divine Work already used this battle (only present for that army) */
   divineUsed?: boolean
+  /** Adeptus Mechanicus with a Tech-Priest Enginseer: friendly VEHICLE models already destroyed, so Vengeance for the
+   * Omnissiah looks at each wreck once (absent until the first one) */
+  wrecks?: string[]
   /** Stratagems used in the current phase (each once per phase); reset when a phase starts */
   stratagemsThisPhase?: StratagemId[]
   /** own units targeted by a Stratagem in the current phase (one Stratagem per unit per phase) */
@@ -611,6 +625,8 @@ export type Command =
   | { type: 'guide'; unitId: string; targetId: string }
   | { type: 'imperative'; imperative: Imperative }
   | { type: 'divineWork'; unitId: string }
+  /** Omnissiah's Blessing (Tech-Priest Enginseer in `unitId`): repair model `modelId` of friendly unit `targetId` */
+  | { type: 'blessing'; unitId: string; targetId: string; modelId: string }
   | { type: 'bombSquig'; unitId: string; targetId: string }
   | { type: 'engrammatic'; unitId: string; targetId: string }
   | { type: 'wraithForm'; unitId: string; targetId: string }

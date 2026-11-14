@@ -1,6 +1,7 @@
 // Healing and reviving (core rules 02.02.04): healing returns lost wounds first (damaged models),
 // then revives destroyed non-CHARACTER models with ONE wound remaining. A unit never grows beyond
-// its starting strength (revived models were part of it). Used by Necron Reanimation Protocols.
+// its starting strength (revived models were part of it). Used by Necron Reanimation Protocols and, for a single model,
+// by Omnissiah's Blessing (Tech-Priest Enginseer).
 
 import { basesOverlap, dist, EPS } from '../geometry/geometry'
 import { alive, checkCoherency, enemiesOf, ENGAGEMENT_RANGE, profileOf, radiusOf } from '../gameState'
@@ -32,15 +33,21 @@ export function reviveSpot(s: GameState, u: UnitState, m: ModelState): Vec | nul
   return null
 }
 
+/** A living model regains up to `n` lost wounds (never above its Wounds characteristic). Mutates `m`; returns the wounds regained. */
+export function healModel(m: ModelState, n: number): number {
+  if (m.destroyed) return 0
+  const take = Math.max(0, Math.min(profileOf(m).w - m.wounds, n))
+  m.wounds += take
+  return take
+}
+
 /** Mutates `u`. `n` = wounds to regain. */
 export function healUnit(s: GameState, u: UnitState, n: number): { healed: number; revived: number } {
   let left = n
   let healed = 0
   let revived = 0
   for (const m of alive(u)) {
-    const lost = profileOf(m).w - m.wounds
-    const take = Math.min(lost, left)
-    m.wounds += take
+    const take = healModel(m, left)
     left -= take
     healed += take
   }

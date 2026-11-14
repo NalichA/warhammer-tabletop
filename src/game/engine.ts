@@ -1,7 +1,7 @@
 // Rules engine: the single source of truth for legality and outcomes.
 // validate(state, cmd) never mutates; apply(state, cmd, roller) returns a new state.
 
-import { FACTION_NAME } from './data/datasheets'
+import { FACTION_NAME, WEAPONS } from './data/datasheets'
 import { rollDie, rollMany, type Roller } from './dice/dice'
 import { dist, withinRange, EPS, add, sub, scale, len, sweptCircleHits } from './geometry/geometry'
 import {
@@ -12,6 +12,7 @@ import {
   updateObjectiveControl, weaponsOf, OBJECTIVE_MARKER_MM,
 } from './gameState'
 import { healUnit } from './rules/heal'
+import { bless, blessingFnpByModel, blessingOptions, blessingProblem, LONE_OPERATIVE_RANGE, loneOperative, noteWrecks, resetBlessings, VENGEANCE_ATTACKS } from './rules/enginseer'
 import { disembark, disembarkProblem, embark, embarkedOf, embarkProblem, emergencyDisembark, firingDeckWeapons, passengersOf, removeEmptyDedicated } from './rules/transports'
 import { aiArrivalTarget, arrivalProblem, arrivalSpot, arrive, expireReserves, reservesOf } from './rules/reserves'
 import { applySecondary, secondaryCommandStart, secondaryProblem, secondaryTurnEnd } from './rules/secondaries'
@@ -142,6 +143,8 @@ function defenceMods(s: GameState, p: WeaponProfile, target: UnitState) {
   const regen = hasBuff(target, 'rapidRegeneration') ? (inSynapseRange(s, target) ? 5 : 6) : undefined
   const fnps = [feelNoPainOf(s, target), regen].filter((x): x is number => x !== undefined)
   const fnp = fnps.length ? Math.min(...fnps) : undefined
+  // Omnissiah's Blessing: a repaired VEHICLE model has Feel No Pain 5+ of its own
+  const fnpByModel = blessingFnpByModel(target)
   // Baleful Halo: −1 to wound rolls; a roll is never modified by more than −1
   const halo = hasBuff(target, 'balefulHalo')
   const woundNotes = [duty ? tr('Duty Eternal: Strength beats Toughness') : shield ? tr('Wave Serpent Shield: Strength beats Toughness') : guard ? tr('Guardian Protocols: Strength beats Toughness') : '', halo ? tr('Sinister Halo') : ''].filter(Boolean)
@@ -153,6 +156,7 @@ function defenceMods(s: GameState, p: WeaponProfile, target: UnitState) {
     damageMod: hasAbility(target, 'dreadArd') || fortress ? -1 : 0,
     ...implacable(target),
     ...(fnp ? { fnp } : {}),
+    ...(fnpByModel ? { fnpByModel } : {}),
   }
 }
 
@@ -273,6 +277,12 @@ export function shootPlan(
       ? tr('A vehicle in engagement range of an enemy shoots only at the unit it is engaged with.')
       : tr('The unit is in engagement range of the enemy: it can shoot only with close-quarters weapons (Close-quarters) and only at the unit it is engaged with.') }
 
+  // Lone Operative (an Enginseer next to a friendly vehicle): only models within 12″ of it can shoot it
+  const lone = loneOperative(s, target)
+  const loneReach = (m: ModelState) => Math.min(...alive(target).map((t) => modelDistance(m, t))) - (opts.assumeReach ?? 0) <= LONE_OPERATIVE_RANGE + EPS
+  if (lone && !alive(unit).some(loneReach))
+    return { ...plan, problem: tr('Lone Operative: “{name}” stands next to a friendly vehicle and can be shot only from within {LONE_OPERATIVE_RANGE}″.', { name: target.name, LONE_OPERATIVE_RANGE }) }
+
   const byKey = new Map<string, AttackGroup & { ctx: AttackContext }>()
   let anyVisible = false
   let closest = Infinity
@@ -291,6 +301,10 @@ export function shootPlan(
       if (before > chosen.length) plan.skipped.push(tr('{name}: after an Advance only Assault weapons shoot.', { name: profileOf(m).name }))
     }
     chosen = chosen.filter((w) => !(w.profiles[0].keywords.oneShot && isSpent(unit, m, w)))
+    if (lone && !loneReach(m)) {
+      if (chosen.length) plan.skipped.push(tr('{name}: the target is a Lone Operative farther than {LONE_OPERATIVE_RANGE}″.', { name: profileOf(m).name, LONE_OPERATIVE_RANGE }))
+      continue
+    }
     if (opts.rangeFirst) {
       // a weapon fires only at a visible target model within its range, so no model in reach means nothing fires
       let reach = -Infinity
@@ -445,6 +459,11 @@ export function meleeSetup(s: GameState, unit: UnitState, target: UnitState, p0:
   if (unit.finestHour && own('finestHour')) {
     p = { ...p, attacks: p.attacks + 3, keywords: { ...p.keywords, devastatingWounds: true } }
     notes.push('Finest Hour +3 A, Devastating Wounds')
+  }
+  // Vengeance for the Omnissiah (Enginseer): the Omnissian axe has 6 attacks once a friendly vehicle fell nearby
+  if (m && unit.vengeance?.includes(m.id) && p0 === WEAPONS.enginseerAxe.profiles[0]) {
+    p = { ...p, attacks: VENGEANCE_ATTACKS }
+    notes.push(tr('Vengeance for the Omnissiah: {VENGEANCE_ATTACKS} A', { VENGEANCE_ATTACKS }))
   }
   // Might Is Right (Warboss): +3 A and +2 S after charging
   if (own('mightIsRight') && unit.charged) {
@@ -741,6 +760,10 @@ export function validate(s: GameState, cmd: Command): Validation {
       if (s.players[unit.owner].divineUsed) return fail(tr('Defend the Divine Work has already been used in this battle (once per battle).'))
       return OK
     }
+    case 'blessing': {
+      const p = blessingProblem(s, unit, findUnit(s, cmd.targetId), cmd.modelId)
+      return p ? fail(p) : OK
+    }
     case 'engrammatic': {
       if (!hasAbility(unit, 'engrammaticLogic')) return fail(tr('This unit does not have Engrammatic Logic.'))
       if (unit.engrammaticUsed) return fail(tr('Engrammatic Logic has already been used in this battle (once per battle).'))
@@ -972,6 +995,8 @@ export function shockFailChance(s: GameState, u: UnitState): number {
 }
 
 function commandPhase(s: GameState, r: Roller) {
+  // Omnissiah's Blessing lasts until the start of its player's next Command phase
+  resetBlessings(s, s.activePlayer)
   // a combat doctrine lasts until the start of its player's next Command phase
   if (s.players[s.activePlayer].doctrine) s.players[s.activePlayer].doctrine = null
   if (s.activePlayer === 'adeptus_mechanicus' && s.round >= 2 && s.round <= 5 && detachmentOn(s, s.activePlayer)) radFallout(s, r)
@@ -1070,6 +1095,31 @@ function enforceCrews(s: GameState) {
     if (alive(u).some((m) => !profileOf(m).platform)) continue
     for (const m of u.models) if (!m.destroyed) m.destroyed = true
     addLog(s, tr('{name}: the last Guardian died — the heavy weapon platforms are destroyed (Crewed Platform).', { name: u.name }), 'standard')
+  }
+}
+
+/** Omnissiah's Blessing (Tech-Priest Enginseer): roll a D3 and repair the model; `auto` when the game picked it at the end
+ * of the Command phase because the player did not. */
+function blessingApply(s: GameState, u: UnitState, t: UnitState, modelId: string, r: Roller, auto: boolean) {
+  const m = t.models.find((x) => x.id === modelId)!
+  const v = rollDie(r, 'D3')
+  const { healed, fnp } = bless(u, t, m, v)
+  const model = profileOf(m).name
+  const note = tr('Up to {v} lost wounds: {healed} restored{value}.', { v, healed, value: fnp ? tr('; Feel No Pain 5+ until your next Command phase') : '' })
+  pushDice(s, tr('Omnissiah’s Blessing: {name}', { name: t.name }), [{ label: 'D3', target: '—', dice: [{ value: v, success: true }], note }],
+    tr('{name}: Omnissiah’s Blessing — {model} of “{unit}” regains {healed} wounds.', { name: u.name, model, unit: t.name, healed }))
+  addLog(s, tr('{name}: Omnissiah’s Blessing{value} — {model} of “{unit}”: D3 = {v}, wounds restored: {healed}{value2}.', {
+    name: u.name, value: auto ? tr(' (picked automatically)') : '', model, unit: t.name, v, healed,
+    value2: fnp ? tr(', Feel No Pain 5+ until your next Command phase') : '',
+  }), 'minimal')
+}
+
+/** Omnissiah's Blessing the player did not use: at the end of the Command phase each Enginseer repairs its best target
+ * (the most damaged vehicle, else the most damaged model). */
+function autoBlessings(s: GameState, r: Roller) {
+  for (const u of unitsOf(s, s.activePlayer)) {
+    const best = blessingOptions(s, u)[0]
+    if (best) blessingApply(s, u, best.target, best.model.id, r, true)
   }
 }
 
@@ -1287,6 +1337,7 @@ export function apply(state: GameState, cmd: Command, r: Roller): GameState {
         holdScoutedObjectives(s, s.activePlayer, 'thievinScavengers')
       }
       if (s.phase === 'command') {
+        autoBlessings(s, r)
         reanimate(s, r)
         holdScoutedObjectives(s, s.activePlayer)
         missionCommandEnd(s)
@@ -1361,6 +1412,9 @@ export function apply(state: GameState, cmd: Command, r: Roller): GameState {
         : tr('Conqueror Imperative: ranged weapons get Assault, melee WS 1 better; battleline units get AP +1.'), 'minimal')
       break
     }
+    case 'blessing':
+      blessingApply(s, findUnit(s, cmd.unitId)!, findUnit(s, cmd.targetId)!, cmd.modelId, r, false)
+      break
     case 'divineWork': {
       const u = findUnit(s, cmd.unitId)!
       s.players[u.owner].divineUsed = true
@@ -1522,6 +1576,7 @@ export function apply(state: GameState, cmd: Command, r: Roller): GameState {
   enforceCrews(s)
   // a transport destroyed by this command: its passengers make an Emergency Disembark
   if (s.embarked?.length) emergencyDisembarks(s, r)
+  noteWrecks(s)
   s.rng = r.state()
   return s
 }
@@ -1734,6 +1789,14 @@ export function unitActions(s: GameState, unitId: string): ActionInfo[] {
   if (hasAbility(u, 'engrammaticLogic') && !u.engrammaticUsed)
     for (const f of s.units.filter((x) => x.owner === u.owner && !isDestroyed(x) && x.battleShocked))
       add(`engram:${f.id}`, tr('Engrammatic Logic: remove Battle-shock from “{name}” (once per battle)', { name: f.name }), { type: 'engrammatic', unitId, targetId: f.id })
+  if (s.phase === 'command')
+    for (const o of blessingOptions(s, u)) {
+      const lost = profileOf(o.model).w - o.model.wounds
+      add(`bless:${o.target.id}:${o.model.id}`, lost
+        ? tr('🔧 Omnissiah’s Blessing: repair {model} of “{unit}” ({lost} wounds lost)', { model: profileOf(o.model).name, unit: o.target.name, lost })
+        : tr('🔧 Omnissiah’s Blessing: {model} of “{unit}” (Feel No Pain 5+)', { model: profileOf(o.model).name, unit: o.target.name }),
+      { type: 'blessing', unitId, targetId: o.target.id, modelId: o.model.id })
+    }
   if (hasAbility(u, 'defendDivineWork')) add('divineWork', tr('Defend the Divine Work (4+ invulnerable, once per battle)'), { type: 'divineWork', unitId })
   if (s.phase === 'shooting') {
     const act = s.mission && PRIMARY[s.mission.primary].action

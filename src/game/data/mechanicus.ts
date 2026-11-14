@@ -4,7 +4,8 @@ import { tr } from '../../i18n/index'
 // Adeptus Mechanicus, 11th-edition datasheets as transcribed by Wahapedia (checked 2026-11-09):
 //   Tech-Priest Dominus, Tech-Priest Manipulus, Skitarii Rangers, Skitarii Vanguard, Kataphron Breachers,
 //   Kataphron Destroyers, Sicarian Infiltrators, Kastelan Robots; and (checked 2026-11-12) Serberys Sulphurhounds,
-//   Ironstrider Ballistarii, Onager Dunecrawler, Corpuscarii Electro-Priests. See docs/mechanicus.md.
+//   Ironstrider Ballistarii, Onager Dunecrawler, Corpuscarii Electro-Priests; and (checked 2026-11-14) Tech-Priest Enginseer.
+//   See docs/mechanicus.md.
 
 const anti = (keyword: string, roll: number) => ({ keyword, roll })
 
@@ -32,6 +33,19 @@ export const MECHANICUS_WEAPONS: Record<string, Weapon> = {
   omnissianAxe: {
     id: 'omnissianAxe', name: tr('Omnissian Axe'),
     profiles: [{ name: '', range: 'melee', attacks: 4, skill: 3, s: 6, ap: -2, d: 2, keywords: {} }],
+  },
+  // ---- Tech-Priest Enginseer (its pistol has BS 3+, its axe is lighter than the Dominus's)
+  enginseerPistol: {
+    id: 'enginseerPistol', name: tr('Mechanicus Pistol'),
+    profiles: [{ name: '', range: 12, attacks: 1, skill: 3, s: 6, ap: -1, d: 1, keywords: { closeQuarters: true, devastatingWounds: true } }],
+  },
+  enginseerAxe: {
+    id: 'enginseerAxe', name: tr('Omnissian Axe'),
+    profiles: [{ name: '', range: 'melee', attacks: 3, skill: 4, s: 6, ap: -2, d: 2, keywords: {} }],
+  },
+  servoArm: {
+    id: 'servoArm', name: tr('Servo-arm'),
+    profiles: [{ name: '', range: 'melee', attacks: 1, skill: 4, s: 6, ap: -2, d: 2, keywords: { extraAttacks: true } }],
   },
   // ---- Tech-Priest Manipulus
   magnarailLance: {
@@ -281,6 +295,10 @@ export const MECHANICUS_PROFILES: Record<string, ModelProfile> = {
     id: 'techManipulus', name: tr('Tech-Priest Manipulus'), m: 6, t: 4, sv: 2, w: 4, ld: 7, oc: 1, invuln: 5, baseMm: 50, character: true,
     weapons: ['magnarailLance', 'omnissianStaff'],
   },
+  techEnginseer: {
+    id: 'techEnginseer', name: tr('Tech-Priest Enginseer'), m: 6, t: 4, sv: 3, w: 3, ld: 7, oc: 1, invuln: 5, baseMm: 32, character: true,
+    weapons: ['enginseerPistol', 'enginseerAxe', 'servoArm'],
+  },
   techManipulusCannon: { id: 'techManipulusCannon', name: tr('Tech-Priest Manipulus with transonic cannon'), ...dominus, weapons: ['transonicCannon', 'omnissianStaff'] },
   // Rangers: precision rifles. Alpha has the optional Alpha combat weapon, one Ranger carries an Omnispex.
   rangerAlpha: { id: 'rangerAlpha', name: tr('Ranger Alpha'), ...skitarii, weapons: ['galvanicRifle', 'alphaCombatWeapon', 'skitariiCCW'] },
@@ -339,7 +357,7 @@ export const MECHANICUS_PROFILES: Record<string, ModelProfile> = {
 }
 
 const AM = 'ADEPTUS MECHANICUS'
-/** Leader (Tech-Priest Dominus, Manipulus): the units of the game from the datasheet's list */
+/** Leader (Tech-Priest Dominus, Manipulus, Enginseer): the units of the game from the datasheet's list */
 const TECH_PRIEST_LEADS = ['rangers', 'vanguard', 'breachers', 'destroyers', 'electroPriests']
 
 export const MECHANICUS_DATASHEETS: Record<string, Datasheet> = {
@@ -356,6 +374,13 @@ export const MECHANICUS_DATASHEETS: Record<string, Datasheet> = {
     abilities: ['doctrina', 'galvanicField', 'defendDivineWork'],
     leads: TECH_PRIEST_LEADS,
     description: tr('Fire support: the magnarail lance hits at 36″, and the led unit gets Lethal Hits and, once per battle, a 4+ invulnerable save.'),
+  },
+  techEnginseer: {
+    id: 'techEnginseer', name: tr('Tech-Priest Enginseer|army'), faction: 'adeptus_mechanicus',
+    keywords: ['INFANTRY', 'CHARACTER', 'IMPERIUM', 'CULT MECHANICUS', 'TECH-PRIEST', 'ENGINSEER', AM],
+    abilities: ['doctrina', 'omnissiahsBlessing', 'enginseer', 'vengeanceOmnissiah'],
+    leads: TECH_PRIEST_LEADS,
+    description: tr('Field mechanic: in your Command phase repairs a friendly Mechanicus model within 3″ (D3 wounds; a vehicle also gets Feel No Pain 5+); next to a vehicle it is hard to shoot.'),
   },
   rangers: {
     id: 'rangers', name: tr('Skitarii Rangers'), faction: 'adeptus_mechanicus',
@@ -452,5 +477,8 @@ export const MECHANICUS_ABILITY_TEXT: Record<string, string> = {
   damaged1to4: tr('Damaged (1–4 wounds): while the model has 4 wounds or fewer left, −1 to its hit rolls.'),
   feelNoPain5: tr('Feel No Pain 5+: the model cancels each lost wound on a 5+.'),
   electroShock: tr('Electro-shock: after shooting in your phase, pick an enemy unit (not MONSTER or VEHICLE) that was hit: until the end of the opponent’s next turn −2″ to its move and −2 to its Advance and Charge rolls. [The target of the shooting is chosen.]'),
+  omnissiahsBlessing: tr('Omnissiah’s Blessing: in your Command phase pick one other friendly Adeptus Mechanicus model within 3″ of the Enginseer: it regains up to D3 lost wounds, and a VEHICLE also gets Feel No Pain 5+ until your next Command phase. Each model can be picked once per Command phase. [If you do not pick, the game repairs the most damaged model at the end of the phase, vehicles first.]'),
+  enginseer: tr('Enginseer: while not leading a unit and within 3″ of a friendly Adeptus Mechanicus VEHICLE, the Enginseer has Lone Operative — enemy models farther than 12″ cannot shoot it.'),
+  vengeanceOmnissiah: tr('Vengeance for the Omnissiah: once a friendly Adeptus Mechanicus VEHICLE model is destroyed within 12″ of the Enginseer, its Omnissian axe has 6 attacks until the end of the battle.'),
   roboticBodyguard: tr('Robotic Bodyguard: the Datasmith leading the unit gets Feel No Pain 4+. [Not implemented: the Cybernetica Datasmith is not in the roster.]'),
 }
