@@ -53,6 +53,7 @@ import { turnPlan, type PlanKind } from '../game/missionAdvice'
 import { quote, tr } from '../i18n/index'
 import { MISSION_ACTION, PRIMARY, PRIMARY_CAP, primaryTotal, ROUND_CAP } from '../game/rules/missions'
 import { unitsCovered, zonesOf, zonesOn } from '../game/rules/zones'
+import { CANTICLE_NAME, vengeanceMarks } from '../game/rules/cawl'
 import { badgeText } from '../view/zones'
 import { carryProblem, disembarkMode, disembarkSpot, disembarkWindow, embarkedOf, isTransport, passengersOf, placesOf, transportSpec } from '../game/rules/transports'
 import { aiArrivalTarget, arrivalSpot, canDeepStrike, ingressWindow, INGRESS_EDGE, INGRESS_ENEMY, RAPID_INGRESS_CP, RESERVE_DEADLINE, RESERVE_FROM_ROUND, reserveBudget, reservesOf } from '../game/rules/reserves'
@@ -291,9 +292,28 @@ function ZoneLines({ u }: { u: UnitState }) {
   const unit = game.units.find((x) => x.id === u.id) ?? u
   const on = zonesOn(game, unit)
   const own = zonesOf(game, unit).filter((z) => z.kind !== 'explosion')
-  if (!on.length && !own.length) return null
+  // Belisarius Cawl: the canticle he sings now; an enemy unit: whether it is his Machine Vengeance target
+  const marks = vengeanceMarks(game)
+  const sung = unit.canticle && !isDestroyed(unit) ? unit.canticle : undefined
+  const vengeanceOn = marks.find((v) => v.source.id === unit.id)?.target
+  const hunted = marks.filter((v) => v.target.id === unit.id)
+  if (!on.length && !own.length && !sung && !hunted.length) return null
   return (
     <div className="mt-2 text-[11px]" aria-label={tr('Zones')}>
+      {sung && (
+        <p className="font-semibold text-amber-300">
+          {tr('Canticle now: {canticle}{target}', { canticle: CANTICLE_NAME[sung], target: vengeanceOn ? tr(' against “{name}”', { name: vengeanceOn.name }) : '' })}
+          {' — '}
+          {sung === 'machineVengeance' ? tr('friendly Adeptus Mechanicus units re-roll hit rolls against it') : sung === 'mantraDiscipline' ? tr('friendly Adeptus Mechanicus units within 6″ get +1 OC and +1 to Leadership tests') : tr('friendly Adeptus Mechanicus units within 6″ have Stealth (the benefit of cover against shooting)')}
+          {'. '}
+          {tr('Change it in your Command phase with the “⚙ Canticle” buttons.')}
+        </p>
+      )}
+      {hunted.map((v) => (
+        <p key={v.source.id} className="font-semibold text-rose-300">
+          {tr('⚙ Machine Vengeance target ({name}): Adeptus Mechanicus units re-roll hit rolls against this unit.', { name: v.source.name })}
+        </p>
+      ))}
       {on.length > 0 && (
         <p className="text-teal-300">
           {tr('Affected by: {list}', { list: on.map((h) => tr('{zone} ({name}): {badge}', { zone: h.zone.name, name: h.source.name, badge: badgeText(h) })).join('; ') })}

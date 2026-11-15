@@ -20,7 +20,7 @@ import { adviceLine, adviceWarnings, shotAdvice } from '../game/shotAdvice'
 import { chargeForecast, forecastLine } from '../game/chargeAdvice'
 import { tr } from '../i18n/index'
 import { casualties, moveSeconds, reducedMotion, type Casualty } from '../view/animation'
-import { dragZoneNotes, withDraft, zoneBadges, zoneShapes, type ZoneShape, type ZoneTone } from '../view/zones'
+import { dragZoneNotes, vengeanceLinks, withDraft, zoneBadges, zoneShapes, type ZoneShape, type ZoneTone } from '../view/zones'
 import { zonesOf } from '../game/rules/zones'
 
 /** Colours of ability zones: a bonus, a penalty, an explosion. */
@@ -840,7 +840,9 @@ function BoardLayers({ game, view, stageRef, setHover, sight, hoverUnitId, allZo
     const hovered = pick(hoverUnitId)
     if (hovered) for (const sh of zoneShapes(g, [hovered], true)) shapes.set(sh.key, sh)
     const list = [...shapes.values()]
-    return { shapes: list, badges: zoneBadges(g, new Set(list.map((x) => x.key))), game: g }
+    // Machine Vengeance: a line from Cawl to his target while either of them is selected or hovered
+    const links = vengeanceLinks(g, allZones ? g.units : [pick(st.selectedUnitId), hovered].filter((u): u is UnitState => !!u))
+    return { shapes: list, badges: zoneBadges(g, new Set(list.map((x) => x.key))), links, game: g }
   }, [game, st.draft, st.selectedUnitId, hoverUnitId, allZones])
   const zoneNodes = deploying ? [] : zones.shapes.map((z) => (
     <Group key={z.key} listening={false}>
@@ -856,7 +858,9 @@ function BoardLayers({ game, view, stageRef, setHover, sight, hoverUnitId, allZo
       {z.outline.map((pts, i) => <Line key={i} points={flat(pts)} stroke={ZONE_COLOR[z.tone]} strokeWidth={0.06} dash={[0.35, 0.2]} opacity={0.8} />)}
       <Text x={z.label.x - 4} y={z.label.y - 0.5} width={8} align="center" text={z.label.text} fontSize={0.36} fill={ZONE_COLOR[z.tone]} shadowColor="black" shadowBlur={0.1} />
     </Group>
-  ))
+  )).concat(zones.links.map((l) => (
+    <Line key={`mv-${l.key}`} points={[l.from.x, l.from.y, l.to.x, l.to.y]} stroke={ZONE_COLOR.harm} strokeWidth={0.08} dash={[0.5, 0.25]} opacity={0.85} />
+  )))
   // a badge above each unit a zone affects: "4++", "−1 Ld", "Synapse"
   const badgeNodes = deploying ? [] : [...zones.badges].map(([unitId, list]) => {
     const u = zones.game.units.find((x) => x.id === unitId)

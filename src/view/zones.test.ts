@@ -4,7 +4,7 @@ import { newUnit, radiusOf } from '../game/gameState'
 import { dist } from '../game/geometry/geometry'
 import type { GameState, PlayerId, UnitState, Vec } from '../game/types'
 import { battle, column, place } from '../game/__tests__/helpers'
-import { dragZoneNotes, unionOutline, withDraft, zoneBadges, zoneShapes } from './zones'
+import { dragZoneNotes, unionOutline, vengeanceLinks, withDraft, zoneBadges, zoneShapes } from './zones'
 
 function add(s: GameState, owner: PlayerId, datasheetId: string, at: Vec[], id: string): UnitState {
   const u = newUnit(id, datasheetId, owner, id, composeUnit(datasheetId, at.length).map((p, i) => [p, at[i]]))
@@ -50,6 +50,38 @@ describe('zone view', () => {
     const gaunts = add(t, 'tyranids', 'termagants', column(8, 6, 5, 1.2), 'vGaunts')
     expect(zoneBadges(t, new Set()).get(gaunts.id)).toBeUndefined()
     expect(zoneBadges(t, new Set(['synapse:vWarriors'])).get(gaunts.id)?.map((x) => x.text)).toEqual(['Синапс'])
+  })
+
+  it('Machine Vengeance: a badge on the target, and a line from Cawl while Cawl or the target is picked', () => {
+    const s = empty('adeptus_mechanicus', 'orks')
+    const cawl = add(s, 'adeptus_mechanicus', 'belisariusCawl', [{ x: 4, y: 12 }], 'vCawl')
+    const boyz = add(s, 'orks', 'boyz', column(20, 6, 5), 'vBoyz')
+    expect(zoneBadges(s, new Set()).get(boyz.id)).toBeUndefined()
+    expect(vengeanceLinks(s, [cawl])).toEqual([])
+
+    cawl.canticle = 'machineVengeance'
+    cawl.vengeanceTargetId = boyz.id
+    expect(zoneBadges(s, new Set()).get(boyz.id)?.map((b) => [b.text, b.tone])).toEqual([['⚙ Месть', 'harm']])
+    expect(zoneBadges(s, new Set()).get(cawl.id)).toBeUndefined()
+    const [link] = vengeanceLinks(s, [cawl])
+    expect(link.from).toEqual(cawl.models[0].pos)
+    expect(vengeanceLinks(s, [boyz])).toEqual([link])
+    expect(vengeanceLinks(s, [])).toEqual([])
+
+    place(s, boyz.id, [])
+    expect(zoneBadges(s, new Set()).get(boyz.id)).toBeUndefined()
+    expect(vengeanceLinks(s, [cawl])).toEqual([])
+  })
+
+  it('Mantra of Discipline: a 6″ zone around Cawl and a badge on the Mechanicus units in it', () => {
+    const s = empty('adeptus_mechanicus', 'orks')
+    const cawl = add(s, 'adeptus_mechanicus', 'belisariusCawl', [{ x: 4, y: 12 }], 'vCawl')
+    const rangers = add(s, 'adeptus_mechanicus', 'rangers', column(9, 6, 10, 1.4), 'vRangers')
+    cawl.canticle = 'mantraDiscipline'
+    expect(zoneShapes(s, [cawl]).map((z) => [z.zone.id, z.tone])).toEqual([['mantraDiscipline', 'help']])
+    expect(zoneBadges(s, new Set()).get(rangers.id)?.map((b) => b.text)).toContain('+1 OC, +1 Ld')
+    cawl.canticle = 'shroudpsalm'
+    expect(zoneBadges(s, new Set()).get(rangers.id)?.map((b) => b.text)).toContain('Скрытность')
   })
 
   it('dragging the Onager tells whom its field will cover; dragging Rangers out tells they leave it', () => {

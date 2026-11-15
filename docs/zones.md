@@ -24,12 +24,15 @@ The datasheets were checked against Wahapedia (11th edition) on 13.11.2026. Of t
 | Synapse | SYNAPSE units | 6″ | friendly Tyranids | Synapse (only while its zone is drawn: it covers nearly every Tyranid) |
 | Near Battleline | Skitarii Rangers and Vanguard | 6″ | Kataphron Breachers (re-roll hits), Serberys Sulphurhounds (Line-breakers +2), Sicarians (−2 Ld), any Mechanicus unit under the Conqueror Imperative (AP +1) | as listed |
 | Psychic Guidance | an Aeldari PSYKER (Farseer) | 12″ | Wraithguard | +1 to hit |
+| Mantra of Discipline | Belisarius Cawl, while he sings it | 6″ | friendly Adeptus Mechanicus units, Cawl too | +1 OC, +1 Ld |
+| Shroudpsalm | Belisarius Cawl, while he sings it | 6″ | friendly Adeptus Mechanicus units, Cawl too | Stealth |
 | Deadly Demise | vehicles and monsters | 6″ | every unit, if the model is destroyed and explodes | none; drawn on hover only |
 
 Not drawn:
 - Spirit Leech (Zoanthropes) is not implemented.
 - A leader's bonus: since #64 the character is inside the unit it leads ([leaders.md](leaders.md)), so there is no zone around it.
 - One-off abilities with a chosen target (Guide, Bomb Squig, Grenade Pack Flyover) are not zones.
+- Cawl's third canticle, Invocation of Machine Vengeance, has a target instead of a range. The target gets a red "⚙ Vengeance" badge. While Cawl or the target is selected or under the pointer, a red dashed line joins them. Both unit cards say it: Cawl's card names the canticle he sings now, the target's card says that the Mechanicus re-roll hits against it.
 
 ## How the board shows them
 
