@@ -58,6 +58,17 @@ export const machineVengeance = (s: GameState, attacker: UnitState, target: Unit
   hasKeyword(attacker, AM)
   && s.units.some((x) => x.owner === attacker.owner && !isDestroyed(x) && x.canticle === 'machineVengeance' && x.vengeanceTargetId === target.id)
 
+/** Every Machine Vengeance now: which living Cawl sings it against which living enemy unit (for the board and the card). */
+export function vengeanceMarks(s: GameState): { source: UnitState; target: UnitState }[] {
+  const out: { source: UnitState; target: UnitState }[] = []
+  for (const u of s.units) {
+    if (isDestroyed(u) || u.canticle !== 'machineVengeance' || !cawlModel(u)) continue
+    const t = s.units.find((x) => x.id === u.vengeanceTargetId)
+    if (t && !isDestroyed(t) && !t.embarkedIn) out.push({ source: u, target: t })
+  }
+  return out
+}
+
 const woundsLeft = (u: UnitState) => alive(u).reduce((a, m) => a + m.wounds, 0)
 
 /** Enemy units worth a Machine Vengeance, best first: within 24″ of a friendly Mechanicus unit, the toughest (most wounds

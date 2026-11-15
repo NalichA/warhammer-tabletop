@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { composeUnit } from '../army/armyList'
 import { emanatusModels, inOnslaught } from '../engine'
 import {
-  alive, battlelineSupport, inSynapseRange, irradiated, neurostaticMod, newUnit, psychicGuidance, warpField,
+  alive, battlelineSupport, canticleAura, inSynapseRange, irradiated, neurostaticMod, newUnit, psychicGuidance, warpField,
 } from '../gameState'
 import { modelsInZone, unitsCovered, zoneById, ZONES, zonesOf, zonesOn, type ZoneId } from '../rules/zones'
 import type { GameState, PlayerId, UnitState, Vec } from '../types'
@@ -100,6 +100,26 @@ describe('zone registry agrees with the rules', () => {
     add(s, 'aeldari', 'farseer', [{ x: 3, y: 10 }], 'zFarseer')
     const guard = add(s, 'aeldari', 'wraithguard', column(10, 8, 5, 1.8), 'zWraithguard')
     sweep(s, guard, () => expect(!!hit(s, guard, 'psychicGuidance')).toBe(psychicGuidance(s, guard)))
+  })
+
+  it('Mantra of Discipline and Shroudpsalm: friendly Mechanicus within 6″ of Cawl, only for the canticle he sings', () => {
+    for (const c of ['mantraDiscipline', 'shroudpsalm'] as const) {
+      const s = empty('adeptus_mechanicus', 'orks')
+      const cawl = add(s, 'adeptus_mechanicus', 'belisariusCawl', [{ x: 3, y: 10 }], 'zCawl')
+      const rangers = add(s, 'adeptus_mechanicus', 'rangers', column(10, 8, 10, 0.9), 'zRangers')
+      expect(zonesOf(s, cawl).map((z) => z.id)).not.toContain(c)
+      cawl.canticle = c
+      expect(zonesOf(s, cawl).map((z) => z.id)).toContain(c)
+      expect(zonesOf(s, cawl).map((z) => z.id)).not.toContain(c === 'mantraDiscipline' ? 'shroudpsalm' : 'mantraDiscipline')
+      expect(!!hit(s, cawl, c)).toBe(true)
+      expect(canticleAura(s, cawl, c)).toBe(true)
+      let inside = 0
+      sweep(s, rangers, () => {
+        expect(!!hit(s, rangers, c)).toBe(canticleAura(s, rangers, c))
+        if (canticleAura(s, rangers, c)) inside++
+      })
+      expect(inside).toBeGreaterThan(0)
+    }
   })
 })
 

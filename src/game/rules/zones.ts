@@ -3,7 +3,7 @@
 // that both agree. Checked against the 11th-edition datasheets on Wahapedia, 13.11.2026 (docs/zones.md).
 import { tr } from '../../i18n/index'
 import {
-  alive, BATTLELINE_RANGE, battlelineSupport, datasheetOf, hasAbility, hasKeyword, imperativeOf, isDestroyed,
+  alive, BATTLELINE_RANGE, battlelineSupport, CANTICLE_RANGE, datasheetOf, hasAbility, hasKeyword, imperativeOf, isDestroyed,
   modelDistance, NEUROSTATIC_RANGE, PSYCHIC_GUIDANCE_RANGE, RAD_RANGE, radiusOf, SYNAPSE_RANGE, unitDistance, WARP_FIELD_RANGE,
 } from '../gameState'
 import { EPS } from '../geometry/geometry'
@@ -16,7 +16,7 @@ export const DEADLY_DEMISE_RANGE = 6
 
 export type ZoneId =
   | 'radSaturation' | 'neurostaticInterference' | 'emanatusForceField' | 'onslaught' | 'warpField'
-  | 'synapse' | 'battleline' | 'psychicGuidance' | 'deadlyDemise'
+  | 'synapse' | 'battleline' | 'psychicGuidance' | 'mantraDiscipline' | 'shroudpsalm' | 'deadlyDemise'
 
 export interface ZoneDef {
   id: ZoneId
@@ -89,6 +89,18 @@ export const ZONES: ZoneDef[] = [
     id: 'psychicGuidance', name: tr('Psychic Guidance'), kind: 'zone', radius: PSYCHIC_GUIDANCE_RANGE, measure: 'edge', side: 'friends',
     source: (_, u) => hasKeyword(u, 'AELDARI') && hasKeyword(u, 'PSYKER'),
     effect: (_, __, t) => (hasAbility(t, 'psychicGuidance') ? tr('+1 to hit') : null),
+  },
+  // Belisarius Cawl's canticles that work within 6″ (`canticleAura` in gameState.ts). Machine Vengeance has a target
+  // instead of a range: the board marks that unit (`vengeanceBadges` in view/zones.ts).
+  {
+    id: 'mantraDiscipline', name: tr('Mantra of Discipline'), kind: 'zone', radius: CANTICLE_RANGE, measure: 'edge', side: 'friends', self: true,
+    source: (_, u) => hasAbility(u, 'canticles') && u.canticle === 'mantraDiscipline',
+    effect: (_, __, t) => (hasKeyword(t, 'ADEPTUS MECHANICUS') ? tr('+1 OC, +1 Ld') : null),
+  },
+  {
+    id: 'shroudpsalm', name: tr('Shroudpsalm'), kind: 'zone', radius: CANTICLE_RANGE, measure: 'edge', side: 'friends', self: true,
+    source: (_, u) => hasAbility(u, 'canticles') && u.canticle === 'shroudpsalm',
+    effect: (_, __, t) => (hasKeyword(t, 'ADEPTUS MECHANICUS') ? tr('Stealth') : null),
   },
   {
     id: 'deadlyDemise', name: tr('Deadly Demise'), kind: 'explosion', radius: DEADLY_DEMISE_RANGE, measure: 'edge', side: 'all',

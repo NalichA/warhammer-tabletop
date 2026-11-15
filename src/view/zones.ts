@@ -2,6 +2,7 @@
 // while a unit is dragged. Pure functions over the game state; the registry of zones is game/rules/zones.ts.
 import { alive, findUnit, radiusOf } from '../game/gameState'
 import { dist } from '../game/geometry/geometry'
+import { vengeanceMarks } from '../game/rules/cawl'
 import { unitsCovered, zonesOf, zonesOn, type ZoneDef, type ZoneHit } from '../game/rules/zones'
 import type { GameState, UnitState, Vec } from '../game/types'
 import { tr } from '../i18n/index'
@@ -85,7 +86,26 @@ export function zoneBadges(s: GameState, shown: Set<string>): Map<string, Badge[
     const unique = [...new Map(list.map((b) => [b.text, b])).values()]
     if (unique.length) out.set(t.id, unique)
   }
+  for (const { target } of vengeanceMarks(s)) {
+    const list = out.get(target.id) ?? []
+    if (!list.some((b) => b.text === VENGEANCE_BADGE())) out.set(target.id, [{ text: VENGEANCE_BADGE(), tone: 'harm' }, ...list])
+  }
   return out
+}
+
+/** The badge on the enemy unit Belisarius Cawl sings Machine Vengeance against: his army re-rolls hits against it. */
+export const VENGEANCE_BADGE = () => tr('⚙ Vengeance')
+
+/** A line from Cawl to his Machine Vengeance target, for the Cawls among `sources` (the selected or hovered unit). */
+export function vengeanceLinks(s: GameState, sources: UnitState[]): { key: string; from: Vec; to: Vec }[] {
+  const ids = new Set(sources.map((u) => u.id))
+  const centre = (u: UnitState) => {
+    const ms = alive(u)
+    return { x: ms.reduce((a, m) => a + m.pos.x, 0) / ms.length, y: ms.reduce((a, m) => a + m.pos.y, 0) / ms.length }
+  }
+  return vengeanceMarks(s)
+    .filter((v) => ids.has(v.source.id) || ids.has(v.target.id))
+    .map((v) => ({ key: `${v.source.id}>${v.target.id}`, from: centre(v.source), to: centre(v.target) }))
 }
 
 /** While unit `unitId` is dragged: whom its zones will cover from there, and which zones it enters or leaves. */
