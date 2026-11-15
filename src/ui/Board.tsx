@@ -13,6 +13,8 @@ import { movePath } from '../game/rules/movement'
 import { objectiveStakes } from '../game/missionAdvice'
 import { passengersOf } from '../game/rules/transports'
 import { clampToRadius, fitBoard, screenToWorld, worldToScreen, zoomAt, type Viewport } from '../view/transform'
+import { TerrainBoxes } from './TerrainBoxes'
+import { canvasRatio, liftOf, stageBox, TILT_FIT, TOKEN_LIFT, tiltCss, tiltPoint, untiltPoint } from '../view/tilt'
 import { actedThisPhase, canActNow, deploymentHint, endPhaseWarning, nextPhaseLabel, nextStepHint, targetCommand } from './guidance'
 import { deploymentProblem, deploymentZone } from '../game/rules/deployment'
 import { movePreview, type MovePreview } from '../game/movePreview'
@@ -57,6 +59,47 @@ function useSize(ref: React.RefObject<HTMLDivElement | null>) {
   return size
 }
 
+const TILT_KEY = 'wh40k-training-tilt'
+
+/** 2.5D view toggle, remembered per browser. */
+function useTilt(): [boolean, () => void] {
+  const [tilt, setTilt] = useState(() => { try { return localStorage.getItem(TILT_KEY) === '1' } catch { return false } })
+  const toggle = () => {
+    try { localStorage.setItem(TILT_KEY, tilt ? '0' : '1') } catch { /* private mode: the choice just isn't remembered */ }
+    setTilt(!tilt)
+  }
+  return [tilt, toggle]
+}
+
+/** While tilted, Konva's flat pointer mapping is wrong: replace it with the inverse of the CSS projection. */
+function useTiltPointers(stageRef: React.RefObject<Konva.Stage | null>, rootRef: React.RefObject<HTMLDivElement | null>, tilt: boolean, w: number, h: number) {
+  const { ox, oy } = stageBox(w, h, tilt)
+  useEffect(() => {
+    const stage = stageRef.current
+    const root = rootRef.current
+    if (!stage || !root || !tilt) return
+    type Pos = { id: number; x: number; y: number }
+    const s = stage as unknown as { pointerPos: Vec | null; _pointerPositions: Pos[]; _changedPointerPositions: Pos[] }
+    stage.setPointersPositions = (evt: PointerEvent | MouseEvent | TouchEvent) => {
+      Konva.Stage.prototype.setPointersPositions.call(stage, evt)
+      const r = root.getBoundingClientRect()
+      const map = (cx: number, cy: number) => { const q = untiltPoint({ x: cx - r.left, y: cy - r.top }, w, h); return { x: q.x + ox, y: q.y + oy } }
+      if ('touches' in evt && evt.touches !== undefined) {
+        const conv = (l: TouchList): Pos[] => Array.from(l, (t) => ({ id: t.identifier, ...map(t.clientX, t.clientY) }))
+        s._pointerPositions = conv(evt.touches)
+        s._changedPointerPositions = conv(evt.changedTouches ?? evt.touches)
+      } else if ('clientX' in evt) {
+        const id = s._pointerPositions[0]?.id ?? 0
+        const p = map(evt.clientX, evt.clientY)
+        s.pointerPos = p
+        s._pointerPositions = [{ id, ...p }]
+        s._changedPointerPositions = [{ id, ...p }]
+      }
+    }
+    return () => { delete (stage as { setPointersPositions?: unknown }).setPointersPositions }
+  }, [stageRef, rootRef, tilt, w, h, ox, oy])
+}
+
 interface Hover {
   unitId: string
   modelId: string
@@ -69,27 +112,49 @@ export function Board() {
   const [vp, setVp] = useState<Viewport | null>(null)
   const [hover, setHover] = useState<Hover | null>(null)
   const [allZones, setAllZones] = useState(false)
-  const view = vp ?? fitBoard(game.board, size.w, size.h, 32)
   const stageRef = useRef<Konva.Stage>(null)
+  const boxesRef = useRef<HTMLDivElement>(null)
+  const [tilt, toggleTilt] = useTilt()
+  const { sw, sh, ox, oy } = stageBox(size.w, size.h, tilt)
+  // stage coordinates = root coordinates + (ox, oy); tilted, the board is fitted smaller around the root's centre
+  const view = vp ?? (() => {
+    const f = fitBoard(game.board, size.w, size.h, 32)
+    const scale = tilt ? f.scale * TILT_FIT : f.scale
+    return { scale, x: (size.w - game.board.width * scale) / 2 + ox, y: (size.h - game.board.height * scale) / 2 + oy }
+  })()
+  useTiltPointers(stageRef, ref, tilt, size.w, size.h)
+  const css = tiltCss(size.h)
+  useEffect(() => {
+    const ratio = canvasRatio(tilt)
+    stageRef.current?.getLayers().forEach((l) => { l.getCanvas().setPixelRatio(ratio); l.batchDraw() })
+  }, [tilt, sw, sh])
   useKeyboard()
 
-  const zoomBy = (f: number) => setVp(zoomAt(view, { x: size.w / 2, y: size.h / 2 }, f))
+  const zoomBy = (f: number) => setVp(zoomAt(view, { x: sw / 2, y: sh / 2 }, f))
   const sight = useSightPreview()
   const zoneNotes = useZoneNotes()
 
   return (
     <div ref={ref} className="relative h-full w-full overflow-hidden bg-stone-800" data-testid="board">
+      <div className="h-full w-full" style={css.wrap}>
+      <div className={`relative ${reducedMotion() ? '' : 'transition-transform duration-500'}`} style={{ width: sw, height: sh, left: -ox, top: -oy, ...(tilt ? { ...css.stage, transformStyle: 'preserve-3d', transformOrigin: `${size.w / 2 + ox}px ${size.h / 2 + oy}px`, willChange: 'transform' } : {}) }}>
       <Stage
         ref={stageRef}
-        width={size.w}
-        height={size.h}
+        width={sw}
+        height={sh}
         x={view.x}
         y={view.y}
         scaleX={view.scale}
         scaleY={view.scale}
         draggable
+        onDragMove={(e) => {
+          // the 3D terrain follows the pan without a re-render
+          if (e.target === stageRef.current && boxesRef.current) boxesRef.current.style.transform = `translate(${e.target.x() - view.x}px, ${e.target.y() - view.y}px)`
+        }}
         onDragEnd={(e) => {
-          if (e.target === stageRef.current) setVp({ ...view, x: e.target.x(), y: e.target.y() })
+          if (e.target !== stageRef.current) return
+          if (boxesRef.current) boxesRef.current.style.transform = ''
+          setVp({ ...view, x: e.target.x(), y: e.target.y() })
         }}
         onWheel={(e) => {
           e.evt.preventDefault()
@@ -97,17 +162,22 @@ export function Board() {
           if (p) setVp(zoomAt(view, p, e.evt.deltaY < 0 ? 1.12 : 1 / 1.12))
         }}
       >
-        <BoardLayers game={game} view={view} stageRef={stageRef} setHover={setHover} sight={sight} hoverUnitId={hover?.unitId ?? null} allZones={allZones} />
+        <BoardLayers game={game} view={view} tilt={tilt} stageRef={stageRef} setHover={setHover} sight={sight} hoverUnitId={hover?.unitId ?? null} allZones={allZones} />
       </Stage>
+      {tilt && <TerrainBoxes terrain={game.terrain} view={view} layerRef={boxesRef} />}
+      </div>
+      </div>
+      {tilt && <div className="pointer-events-none absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(6,23,43,0.75), rgba(6,23,43,0.35) 18%, transparent 42%)' }} />}
       <GuideBanner />
       {sight && <SightPanel sight={sight} zoneNotes={zoneNotes} />}
       <div className="absolute right-2 top-14 flex flex-col gap-1">
         <button className="board-btn" onClick={() => zoomBy(1.25)} aria-label={tr('Zoom in')} title={tr('Zoom in (mouse wheel)')}>+</button>
         <button className="board-btn" onClick={() => zoomBy(0.8)} aria-label={tr('Zoom out')} title={tr('Zoom out')}>−</button>
         <button className="board-btn text-xs" onClick={() => setVp(null)} title={tr('Fit the field')}>⤢</button>
+        <button className={`board-btn text-xs ${tilt ? 'ring-2 ring-yellow-400' : ''}`} onClick={() => { setVp(null); toggleTilt() }} aria-pressed={tilt} title={tr('2.5D view: tilt the field')}>2.5D</button>
       </div>
       <Legend allZones={allZones} setAllZones={setAllZones} />
-      {hover && <ModelTooltip hover={hover} view={view} width={size.w} />}
+      {hover && <ModelTooltip hover={hover} view={view} width={size.w} project={tilt ? (p) => tiltPoint({ x: p.x - ox, y: p.y - oy }, size.w, size.h) : (p) => ({ x: p.x - ox, y: p.y - oy })} />}
       <ActionBar />
     </div>
   )
@@ -237,12 +307,14 @@ function GuideBanner() {
   )
 }
 
-/** Terrain as an architectural plan: ruins = hatched walls with pillars, craters = contour lines. */
+/** Terrain as an architectural plan: ruins = hatched walls with pillars, craters = contour lines. In the 2.5D view the
+ * footprint stays as it is and `TerrainBoxes` stands the walls up over it. */
 function TerrainShape({ t, editable, selected, onClick, onMove }: { t: Terrain; editable: boolean; selected: boolean; onClick: () => void; onMove: (b: Box, node: Konva.Node) => void }) {
   const b = boxOf(t)
   const style = TERRAIN_STYLE[t.kind]
   const ink = style.stroke
   const thin = Math.min(b.w, b.h) < 1.2
+  const long = b.w >= b.h
   const hatch: number[][] = []
   for (let k = -b.h; k < b.w; k += 0.4) hatch.push([k, 0, k + b.h, b.h])
   const effect: Record<Terrain['kind'], string> = {
@@ -250,6 +322,7 @@ function TerrainShape({ t, editable, selected, onClick, onMove }: { t: Terrain; 
     barricade: tr('blocks line of sight · cover'), crater: tr('cover'),
   }
   const dims = `${fmt(b.w)}×${fmt(b.h)}″ · ${effect[t.kind] ?? (t.obscuring ? tr('blocks line of sight') : tr('cover'))}`
+  const steps = (len: number, gap: number) => Array.from({ length: Math.max(0, Math.floor(len / gap)) }, (_, i) => (i + 1) * gap)
   return (
     <Group
       x={b.x}
@@ -291,20 +364,23 @@ function TerrainShape({ t, editable, selected, onClick, onMove }: { t: Terrain; 
         </>
       ) : t.kind === 'barricade' ? (
         <>
+          {/* a hazard-striped barrier with a post at each end */}
           <Rect width={b.w} height={b.h} stroke={ink} strokeWidth={0.06} listening={false} />
-          <Line
-            points={b.w >= b.h
-              ? Array.from({ length: Math.floor(b.w / 0.4) + 1 }, (_, i) => [i * 0.4, i % 2 ? b.h : 0]).flat()
-              : Array.from({ length: Math.floor(b.h / 0.4) + 1 }, (_, i) => [i % 2 ? b.w : 0, i * 0.4]).flat()}
-            stroke={ink} strokeWidth={0.04} listening={false}
-          />
+          {steps(long ? b.w : b.h, 0.5).map((k, i) => (
+            <Line key={k} points={long ? [k - 0.25, b.h, k, 0] : [b.w, k - 0.25, 0, k]} stroke="#f59e0b" strokeWidth={0.12} opacity={i % 2 ? 0.2 : 0.75} listening={false} />
+          ))}
+          {[0, 1].map((e) => (
+            <Rect key={e} x={long ? (e ? b.w - 0.18 : -0.06) : -0.06} y={long ? -0.06 : (e ? b.h - 0.18 : -0.06)} width={long ? 0.24 : b.w + 0.12} height={long ? b.h + 0.12 : 0.24} fill={ink} listening={false} />
+          ))}
         </>
       ) : t.kind === 'container' ? (
         <>
           <Rect width={b.w} height={b.h} stroke={ink} strokeWidth={0.14} listening={false} />
-          {Array.from({ length: Math.floor((b.w >= b.h ? b.w : b.h) / 0.3) }, (_, i) => (
-            <Line key={i} points={b.w >= b.h ? [(i + 1) * 0.3, 0.1, (i + 1) * 0.3, b.h - 0.1] : [0.1, (i + 1) * 0.3, b.w - 0.1, (i + 1) * 0.3]} stroke={ink} strokeWidth={0.02} opacity={0.5} listening={false} />
+          {steps(long ? b.w : b.h, 0.3).map((k) => (
+            <Line key={k} points={long ? [k, 0.1, k, b.h - 0.1] : [0.1, k, b.w - 0.1, k]} stroke={ink} strokeWidth={0.03} opacity={0.5} listening={false} />
           ))}
+          {/* the doors at one end */}
+          <Rect x={long ? b.w - 0.45 : 0.1} y={long ? 0.1 : b.h - 0.45} width={long ? 0.35 : b.w - 0.2} height={long ? b.h - 0.2 : 0.35} stroke={ink} strokeWidth={0.04} listening={false} />
           <Line points={[0, 0, b.w, b.h]} stroke={ink} strokeWidth={0.03} listening={false} />
           <Line points={[b.w, 0, 0, b.h]} stroke={ink} strokeWidth={0.03} listening={false} />
         </>
@@ -488,7 +564,7 @@ function DeployBar() {
   )
 }
 
-function ModelTooltip({ hover, view, width }: { hover: Hover; view: Viewport; width: number }) {
+function ModelTooltip({ hover, view, width, project }: { hover: Hover; view: Viewport; width: number; project?: (p: Vec) => Vec }) {
   const st = useStore()
   const art = useUnitArt()
   const game = st.game!
@@ -496,7 +572,8 @@ function ModelTooltip({ hover, view, width }: { hover: Hover; view: Viewport; wi
   const m = u?.models.find((x) => x.id === hover.modelId)
   if (!u || !m || m.destroyed) return null
   const p = profileOf(m)
-  const pos = worldToScreen(view, st.draft[m.id] ?? m.pos)
+  const flat = worldToScreen(view, st.draft[m.id] ?? m.pos)
+  const pos = project ? project(flat) : flat
   const r = radiusOf(m) * view.scale
   const sel = st.selectedUnitId ? findUnit(game, st.selectedUnitId) : undefined
   const human = st.settings.human
@@ -543,27 +620,39 @@ function ModelTooltip({ hover, view, width }: { hover: Hover; view: Viewport; wi
 
 // ---------------------------------------------------------------- canvas
 
-/** The round token of a model (base, art or label, faction ring); shared by live models and casualty ghosts. */
-function TokenFace({ m, owner, flip, img }: { m: ModelState; owner: UnitState['owner']; flip: boolean; img?: HTMLImageElement }) {
+/** The round token of a model (base, art or label, faction ring); shared by live models and casualty ghosts.
+ * With `lift` (2.5D) the base is a cylinder: a dark disc on the table, a side, and the lifted face. */
+function TokenFace({ m, owner, flip, img, lift = 0 }: { m: ModelState; owner: UnitState['owner']; flip: boolean; img?: HTMLImageElement; lift?: number }) {
   const r = radiusOf(m)
   const tok = TOKENS[m.profileId]
   return (
     <>
-      <Circle radius={r} fill={tok.fill} shadowColor="black" shadowBlur={0.25} shadowOpacity={0.6} shadowOffsetY={0.05} />
-      {img ? (
-        <Group clipFunc={(ctx) => ctx.arc(0, 0, r - 0.05, 0, Math.PI * 2)} listening={false}>
-          <KImage image={img} x={flip ? r : -r} y={-r} width={r * 2} height={r * 2} scaleX={flip ? -1 : 1} />
-        </Group>
-      ) : (
-        <Text text={tok.label} fontSize={r * 0.75} fontStyle="bold" fill={tok.text} width={r * 2} height={r * 2} x={-r} y={-r} align="center" verticalAlign="middle" listening={false} />
+      {lift > 0 && (
+        <>
+          <Circle y={0.12} radius={r} fill="black" opacity={0.35} listening={false} />
+          <Circle radius={r} fill="#1c1917" stroke={FACTION_LINE[owner]} strokeWidth={0.06} />
+          <Rect x={-r} y={-lift} width={r * 2} height={lift} fill="#1c1917" listening={false} />
+          <Line points={[-r, -lift, -r, 0]} stroke={FACTION_LINE[owner]} strokeWidth={0.06} listening={false} />
+          <Line points={[r, -lift, r, 0]} stroke={FACTION_LINE[owner]} strokeWidth={0.06} listening={false} />
+        </>
       )}
-      <Circle radius={r} stroke={FACTION_LINE[owner]} strokeWidth={0.06} listening={false} />
+      <Group y={-lift}>
+        <Circle radius={r} fill={tok.fill} {...(lift > 0 ? {} : { shadowColor: 'black', shadowBlur: 0.25, shadowOpacity: 0.6, shadowOffsetY: 0.05 })} />
+        {img ? (
+          <Group clipFunc={(ctx) => ctx.arc(0, 0, r - 0.05, 0, Math.PI * 2)} listening={false}>
+            <KImage image={img} x={flip ? r : -r} y={-r} width={r * 2} height={r * 2} scaleX={flip ? -1 : 1} />
+          </Group>
+        ) : (
+          <Text text={tok.label} fontSize={r * 0.75} fontStyle="bold" fill={tok.text} width={r * 2} height={r * 2} x={-r} y={-r} align="center" verticalAlign="middle" listening={false} />
+        )}
+        <Circle radius={r} stroke={FACTION_LINE[owner]} strokeWidth={0.06} listening={false} />
+      </Group>
     </>
   )
 }
 
 /** A model that has just been destroyed: it stays on the table until its turn, then flashes and shrinks away. */
-function CasualtyGhost({ c, flip, img, setGhosts }: { c: Casualty; flip: boolean; img?: HTMLImageElement; setGhosts: React.Dispatch<React.SetStateAction<Casualty[]>> }) {
+function CasualtyGhost({ c, flip, img, lift, setGhosts }: { c: Casualty; flip: boolean; img?: HTMLImageElement; lift: number; setGhosts: React.Dispatch<React.SetStateAction<Casualty[]>> }) {
   const group = useRef<Konva.Group>(null)
   const ring = useRef<Konva.Circle>(null)
   useEffect(() => {
@@ -587,13 +676,13 @@ function CasualtyGhost({ c, flip, img, setGhosts }: { c: Casualty; flip: boolean
   }, [c, setGhosts])
   return (
     <Group ref={group} x={c.pos.x} y={c.pos.y} listening={false}>
-      <TokenFace m={c.model} owner={c.owner} flip={flip} img={img} />
+      <TokenFace m={c.model} owner={c.owner} flip={flip} img={img} lift={lift} />
       <Circle ref={ring} radius={radiusOf(c.model) + 0.12} stroke="#ef4444" strokeWidth={0.14} opacity={0} />
     </Group>
   )
 }
 
-function BoardLayers({ game, view, stageRef, setHover, sight, hoverUnitId, allZones }: { game: GameState; view: Viewport; stageRef: React.RefObject<Konva.Stage | null>; setHover: (h: Hover | null) => void; sight: Sight | null; hoverUnitId: string | null; allZones: boolean }) {
+function BoardLayers({ game, view, tilt, stageRef, setHover, sight, hoverUnitId, allZones }: { game: GameState; view: Viewport; tilt: boolean; stageRef: React.RefObject<Konva.Stage | null>; setHover: (h: Hover | null) => void; sight: Sight | null; hoverUnitId: string | null; allZones: boolean }) {
   const st = useStore()
   // turn plan: primary VP at stake on each objective, for the human
   const stakes = useMemo(() => (game.mission && !st.deploying && !game.winner ? objectiveStakes(game, st.settings.human) : {}), [game, st.deploying, st.settings.human])
@@ -738,7 +827,7 @@ function BoardLayers({ game, view, stageRef, setHover, sight, hoverUnitId, allZo
   // the selected unit is drawn last, on top: a model dragged onto another unit's model stays grabbable (a click would
   // otherwise hit the model above it, select that unit and drop the planned move)
   const drawOrder = sel ? [...game.units.filter((u) => u.id !== sel.id), ...game.units.filter((u) => u.id === sel.id)] : game.units
-  const unitsRendered = drawOrder.map((u) => {
+  const modelNodes = drawOrder.map((u) => {
     const draggable = canDrag(u)
     const max = deploying ? Infinity : moveAllowance(game, u, u.id === st.selectedUnitId ? st.moveOptions : { fly: false, swift: false })
     const unplaced = !!deploying && u.owner === human && !deploying.placed.includes(u.id)
@@ -756,7 +845,7 @@ function BoardLayers({ game, view, stageRef, setHover, sight, hoverUnitId, allZo
       const img = images[tokenImageFor(m.profileId, st.customTokens) ?? '']
       // built-in art faces east (+x); the army on the east side is flipped so both armies face each other (user photos are never flipped)
       const flip = sidesOf(game)[1] === u.owner && !st.customTokens[m.profileId]
-      return (
+      return { y: pos.y, selected, node: (
         <Group key={m.id}>
           {selected && draggable && !deploying && (
             <Circle x={m.pos.x} y={m.pos.y} radius={max + r} stroke="#ffffff" strokeWidth={0.05} dash={[0.3, 0.2]} opacity={0.45} listening={false} />
@@ -797,7 +886,7 @@ function BoardLayers({ game, view, stageRef, setHover, sight, hoverUnitId, allZo
             {sightOf.get(u.id)?.far && <Circle radius={r + 0.22} stroke="#fbbf24" strokeWidth={0.07} dash={[0.12, 0.12]} listening={false} />}
             {sightOf.get(u.id)?.threat && <Circle radius={r + 0.42} stroke="#f43f5e" strokeWidth={0.06} dash={[0.08, 0.1]} listening={false} />}
             <Group opacity={unplaced && !moved ? 0.75 : 1}>
-            <TokenFace m={m} owner={u.owner} flip={flip} img={img} />
+            <TokenFace m={m} owner={u.owner} flip={flip} img={img} lift={tilt ? TOKEN_LIFT : 0} />
             {p.w > 1 && (
               <Group x={0} y={r + 0.12} listening={false}>
                 <Rect x={-0.42} y={-0.2} width={0.84} height={0.36} fill={m.wounds < p.w ? '#b91c1c' : '#111827'} cornerRadius={0.1} opacity={0.9} />
@@ -826,9 +915,11 @@ function BoardLayers({ game, view, stageRef, setHover, sight, hoverUnitId, allZo
             )}
           </Group>
         </Group>
-      )
+      ) }
     })
   })
+  // 2.5D: nearer models (lower on the screen) are drawn later, over the ones behind them; the selected unit stays on top
+  const unitsRendered = (tilt ? modelNodes.flat().sort((a, b) => Number(a.selected) - Number(b.selected) || (a.selected ? 0 : a.y - b.y)) : modelNodes.flat()).map((x) => x.node)
 
   // ability zones (auras and the like): of the selected unit, the unit under the pointer, or all of them
   const zones = useMemo(() => {
@@ -932,7 +1023,7 @@ function BoardLayers({ game, view, stageRef, setHover, sight, hoverUnitId, allZo
     grid.push(<Line key={`gy${y}`} points={[0, y, W, y]} stroke={major ? BOARD_STYLE.gridMajor : BOARD_STYLE.grid} strokeWidth={major ? 0.04 : 0.015} listening={false} />)
     if (major) grid.push(<Text key={`ry${y}`} x={-1.1} y={y - 0.17} width={0.95} align="right" text={`${y}″`} fontSize={0.34} fill={BOARD_STYLE.ink} opacity={0.7} listening={false} />)
   }
-  grid.push(<Text key="dims" x={0} y={H + 0.2} width={W} align="center" text={tr('FIELD {W}″ × {H}″ · GRID 1″', { W, H })} fontSize={0.34} fill={BOARD_STYLE.ink} opacity={0.6} letterSpacing={0.05} listening={false} />)
+  grid.push(<Text key="dims" x={0} y={H + 0.2 + (tilt ? liftOf(0.8) + 0.3 : 0)} width={W} align="center" text={tr('FIELD {W}″ × {H}″ · GRID 1″', { W, H })} fontSize={0.34} fill={BOARD_STYLE.ink} opacity={0.6} letterSpacing={0.05} listening={false} />)
 
   const onTerrainMove = (t: Terrain, b: Box, node: Konva.Node) => {
     const fitted = fitBox(b, game.board)
@@ -943,6 +1034,13 @@ function BoardLayers({ game, view, stageRef, setHover, sight, hoverUnitId, allZo
   return (
     <>
       <Layer>
+        {tilt && (
+          <>
+            {/* the table's thickness: the front edge of the slab */}
+            <Rect x={-0.3} y={game.board.height + 0.3} width={game.board.width + 0.6} height={liftOf(0.8)} fill="#030c18" />
+            <Line points={[-0.3, game.board.height + 0.3, game.board.width + 0.3, game.board.height + 0.3]} stroke="#2a6db0" strokeWidth={0.08} listening={false} />
+          </>
+        )}
         <Rect x={-0.3} y={-0.3} width={game.board.width + 0.6} height={game.board.height + 0.6} fill={BOARD_STYLE.edge} cornerRadius={0.2} />
         <Rect x={0} y={0} width={game.board.width} height={game.board.height} fill={BOARD_STYLE.mat} stroke={BOARD_STYLE.ink} strokeWidth={0.06} onClick={() => { onBackgroundClick(); if (deploying) st.selectTerrain(null) }} onTap={onBackgroundClick} />
         {sidesOf(game).map((p, i) => {
@@ -1000,7 +1098,7 @@ function BoardLayers({ game, view, stageRef, setHover, sight, hoverUnitId, allZo
       <Layer>
         {unitsRendered}
         {badgeNodes}
-        {ghosts.map((c) => <CasualtyGhost key={c.model.id} c={c} flip={sidesOf(game)[1] === c.owner && !st.customTokens[c.model.profileId]} img={images[tokenImageFor(c.model.profileId, st.customTokens) ?? '']} setGhosts={setGhosts} />)}
+        {ghosts.map((c) => <CasualtyGhost key={c.model.id} c={c} flip={sidesOf(game)[1] === c.owner && !st.customTokens[c.model.profileId]} img={images[tokenImageFor(c.model.profileId, st.customTokens) ?? '']} lift={tilt ? TOKEN_LIFT : 0} setGhosts={setGhosts} />)}
         {measureNode}
       </Layer>
     </>

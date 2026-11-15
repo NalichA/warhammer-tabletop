@@ -901,6 +901,7 @@ const catalog: Catalog = {
   "First you will place your army in your zone, then round 1 begins. ": "Najpierw rozstawisz armię w swojej strefie, potem zacznie się runda 1. ",
   "First: {reason}": "Najpierw: {reason}",
   "Fit the field": "Dopasuj pole",
+  "2.5D view: tilt the field": "2.5D: przechyl pole",
   "Fix the army roster to start: {item}": "Popraw skład armii, aby zacząć: {item}",
   "Fixed card {n}": "Stała karta {n}",
   "Fixed secondaries are not discarded.": "Stałe misje dodatkowe nie są odrzucane.",

@@ -901,6 +901,7 @@ const catalog: Catalog = {
   "First you will place your army in your zone, then round 1 begins. ": "Сначала вы расставите армию в своей зоне, затем начнётся раунд 1. ",
   "First: {reason}": "Сначала: {reason}",
   "Fit the field": "Вписать поле",
+  "2.5D view: tilt the field": "2.5D: наклонить поле",
   "Fix the army roster to start: {item}": "Исправьте состав армии, чтобы начать: {item}",
   "Fixed card {n}": "Фиксированная карта {n}",
   "Fixed secondaries are not discarded.": "Фиксированные вторичные не сбрасываются.",
