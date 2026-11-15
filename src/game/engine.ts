@@ -13,7 +13,7 @@ import {
 } from './gameState'
 import { healModel, healUnit } from './rules/heal'
 import { bless, blessingFnpByModel, blessingOptions, blessingProblem, LONE_OPERATIVE_RANGE, loneOperative, noteWrecks, resetBlessings, VENGEANCE_ATTACKS } from './rules/enginseer'
-import { CANTICLE_NAME, canticleProblem, cawlLoneOperative, chooseCanticle, clearCanticles, machineVengeance, selfRepairing, setCanticle, vengeanceTargets } from './rules/cawl'
+import { CANTICLE_NAME, canticleProblem, cawlLoneOperative, chooseCanticle, clearCanticles, machineVengeance, selfRepairing, setCanticle, vengeanceInReach, vengeanceTargets } from './rules/cawl'
 import { disembark, disembarkProblem, embark, embarkedOf, embarkProblem, emergencyDisembark, firingDeckWeapons, passengersOf, removeEmptyDedicated } from './rules/transports'
 import { aiArrivalTarget, arrivalProblem, arrivalSpot, arrive, expireReserves, reservesOf } from './rules/reserves'
 import { applySecondary, secondaryCommandStart, secondaryProblem, secondaryTurnEnd } from './rules/secondaries'
@@ -1845,11 +1845,15 @@ export function unitActions(s: GameState, unitId: string): ActionInfo[] {
       { type: 'blessing', unitId, targetId: o.target.id, modelId: o.model.id })
     }
   if (s.phase === 'command' && hasAbility(u, 'canticles') && s.activePlayer === u.owner) {
-    for (const t of vengeanceTargets(s, u).slice(0, 3))
-      if (!(u.canticle === 'machineVengeance' && u.vengeanceTargetId === t.id))
-        add(`canticle:machineVengeance:${t.id}`, tr('⚙ Canticle: Machine Vengeance against “{name}” (re-roll hits)', { name: t.name }), { type: 'canticle', unitId, canticle: 'machineVengeance', targetId: t.id })
     if (u.canticle !== 'mantraDiscipline') add('canticle:mantraDiscipline', tr('⚙ Canticle: Mantra of Discipline (+1 OC and Leadership within 6″)'), { type: 'canticle', unitId, canticle: 'mantraDiscipline' })
     if (u.canticle !== 'shroudpsalm') add('canticle:shroudpsalm', tr('⚙ Canticle: Shroudpsalm (Stealth within 6″)'), { type: 'canticle', unitId, canticle: 'shroudpsalm' })
+    // Machine Vengeance has no range: every enemy unit on the board, the ones the army can reach this turn first
+    for (const t of vengeanceTargets(s, u))
+      if (!(u.canticle === 'machineVengeance' && u.vengeanceTargetId === t.id))
+        add(`canticle:machineVengeance:${t.id}`, vengeanceInReach(s, u, t)
+          ? tr('⚙ Canticle: Machine Vengeance against “{name}” (re-roll hits)', { name: t.name })
+          : tr('⚙ Canticle: Machine Vengeance against “{name}” (re-roll hits; out of reach this turn)', { name: t.name }),
+        { type: 'canticle', unitId, canticle: 'machineVengeance', targetId: t.id })
   }
   if (hasAbility(u, 'defendDivineWork')) add('divineWork', tr('Defend the Divine Work (4+ invulnerable, once per battle)'), { type: 'divineWork', unitId })
   if (s.phase === 'shooting') {

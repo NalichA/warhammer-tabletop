@@ -142,7 +142,11 @@ function placeAround(s: GameState, u: UnitState, c: Vec, hr: number, range: numb
   const ms = [...alive(u)].sort((a, b) => radiusOf(b) - radiusOf(a))
   const foes = s.units.filter((x) => x.owner !== u.owner).flatMap(alive)
   const others = s.units.filter((x) => x.id !== u.id).flatMap(alive)
-  const key = near ? (p: Vec) => dist(p, near) : (p: Vec) => dist(p, c)
+  // every slot of a ring is the same distance from the hull, and only float noise in the last bits of Math.cos/sin/hypot
+  // (it differs between JS engines) would order them. Rounded to 1/1,000,000″, ties keep the slots' own order, so a
+  // browser and a replay in Node set the models up on the same spots.
+  const ref = near ?? c
+  const key = (p: Vec) => Math.round(dist(p, ref) * 1e6)
   const spots = new Map<number, Vec[]>()
   const spotsFor = (mr: number) => {
     let free = spots.get(mr)

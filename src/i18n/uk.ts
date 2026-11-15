@@ -3347,6 +3347,7 @@ const catalog: Catalog = {
   "⚔ Conqueror: Assault, WS 1 better, AP +1 for battleline units": "⚔ Завойовник: Assault, WS на 1 краще, AP +1 лінійним",
   "⚔ They can charge:": "⚔ Можуть атакувати:",
   "⚙ Canticle: Machine Vengeance against “{name}” (re-roll hits)": "⚙ Піснеспів: Машинна помста проти «{name}» (перекидання влучань)",
+  "⚙ Canticle: Machine Vengeance against “{name}” (re-roll hits; out of reach this turn)": "⚙ Піснеспів: Машинна помста проти «{name}» (перекидання влучань; поза досяжністю цього ходу)",
   "⚙ Canticle: Mantra of Discipline (+1 OC and Leadership within 6″)": "⚙ Піснеспів: Мантра дисципліни (+1 OC і лідерство в 6″)",
   "⚙ Canticle: Shroudpsalm (Stealth within 6″)": "⚙ Піснеспів: Псалом завіси (Скритність у 6″)",
   "⚙ Defend the Divine Work": "⚙ Захист божественної праці",

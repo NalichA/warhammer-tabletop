@@ -5,7 +5,7 @@ import { WEAPONS } from '../data/datasheets'
 import { seededRoller } from '../dice/dice'
 import { apply, meleeSetup, shockFailChance, shootPlan, unitActions, validate } from '../engine'
 import { newUnit, objectiveLevels, profileOf } from '../gameState'
-import { chooseCanticle } from '../rules/cawl'
+import { chooseCanticle, vengeanceInReach } from '../rules/cawl'
 import { loneOperative } from '../rules/enginseer'
 import type { Command, GameState, PlayerId, UnitState, Vec } from '../types'
 import { battle, column, endPhase } from './helpers'
@@ -86,6 +86,17 @@ describe('Self-repair Mechanisms and the canticle at the start of the Command ph
     s.units = [c, r1, r2, boyz(55)]
     expect(chooseCanticle(s, c).canticle).toBe('shroudpsalm')
   })
+
+  it('counts an enemy as in reach when a unit can move and then shoot it (Rangers: 6″ + 30″), not only within 24″', () => {
+    const c = cawl({ x: 10, y: 20 })
+    const r = rangers(13)
+    const far = boyz(13 + 33)
+    const s = board('command', AM, c, r, far)
+    expect(vengeanceInReach(s, c, far)).toBe(true)
+    expect(chooseCanticle(s, c)).toMatchObject({ canticle: 'machineVengeance', targetId: 'boyz' })
+    s.units = [c, r, boyz(13 + 45)]
+    expect(vengeanceInReach(s, c, s.units[2])).toBe(false)
+  })
 })
 
 describe('Canticles of the Omnissiah', () => {
@@ -103,6 +114,17 @@ describe('Canticles of the Omnissiah', () => {
     expect(validate(board('shooting', AM, c, boyz(30)), sing(c, 'shroudpsalm')).ok).toBe(false)
     // Machine Vengeance needs an enemy unit
     expect(validate(s, sing(c, 'machineVengeance', 'rangers')).ok).toBe(false)
+  })
+
+  it('offers Machine Vengeance against every enemy unit, even out of reach (the rule has no range), reachable ones first', () => {
+    const c = cawl({ x: 10, y: 20 })
+    const s = board('command', AM, c, rangers(12), boyz(56, 'far'), boyz(30, 'near'))
+    const acts = unitActions(s, 'cawl').filter((a) => a.id.startsWith('canticle:machineVengeance:'))
+    expect(acts.map((a) => a.id)).toEqual(['canticle:machineVengeance:near', 'canticle:machineVengeance:far'])
+    expect(acts[0].label).not.toMatch(/вне досягаемости/)
+    expect(acts[1].label).toMatch(/вне досягаемости в этот ход/)
+    const after = apply(s, sing(c, 'machineVengeance', 'far'), seededRoller(1))
+    expect(unit(after, 'cawl').vengeanceTargetId).toBe('far')
   })
 
   it('Invocation of Machine Vengeance: friendly Mechanicus units re-roll hits against the target only', () => {
