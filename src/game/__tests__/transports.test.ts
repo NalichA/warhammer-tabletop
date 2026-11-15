@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { decide } from '../ai/ai'
 import { composeUnit, type ArmyList } from '../army/armyList'
 import { scenarioById } from '../scenarios/scenarios'
@@ -106,6 +106,28 @@ describe('a destroyed transport', () => {
     expect(out.noChargeThisTurn).toBe(true)
     for (const m of alive(out)) expect(Math.hypot(m.pos.x - 13, m.pos.y - 15)).toBeLessThanOrEqual(2.07 + 6 + 0.01)
     expect(after.diceLog.some((d) => d.title.includes(out.name))).toBe(true)
+  })
+
+  it('the Emergency Disembark sets up the same spots whatever the last bits of Math.hypot (browser vs replay)', () => {
+    const run = (noise: number) => {
+      const { s, rangers, t } = setup('shooting')
+      embark(s, rangers.id, t.id, true)
+      for (const m of t.models) m.destroyed = true
+      const hypot = Math.hypot
+      // another JS engine may round the last bit differently: nudge every result by a few units in the last place
+      const spy = vi.spyOn(Math, 'hypot').mockImplementation((...xs: number[]) => {
+        const v = hypot(...xs)
+        return v * (1 + noise * Number.EPSILON * ((Math.abs(Math.round(xs[0] * 7919 + xs[1] * 104729)) % 5) - 2))
+      })
+      try {
+        return alive(unit(apply(s, { type: 'endPhase' }, seededRoller(4)), rangers.id)).map((m) => m.pos)
+      } finally {
+        spy.mockRestore()
+      }
+    }
+    const plain = run(0)
+    expect(run(4)).toEqual(plain)
+    expect(run(-4)).toEqual(plain)
   })
 
   it('an army whose units are all inside a transport is not wiped out', () => {

@@ -37,7 +37,7 @@ In its own Movement phase, unless it embarked in this phase or its transport Adv
 ## A destroyed transport
 After any command, every destroyed transport with passengers triggers an **Emergency Disembark**:
 
-- each unit is set up wholly within 6″, as close to the hull as possible;
+- each unit is set up wholly within 6″, as close to the hull as possible (spots on rings around the hull; spots at the same distance keep their ring order, so every JS engine picks the same ones and replays match);
 - it is unengaged if it can be, otherwise engaged;
 - models that do not fit are destroyed;
 - one hazard roll per model;
