@@ -3352,6 +3352,7 @@ const catalog: Catalog = {
   "⚔ Conqueror: Assault, WS 1 better, AP +1 for battleline units": "⚔ Zdobywca: Assault, WS o 1 lepsze, AP +1 dla oddziałów liniowych",
   "⚔ They can charge:": "⚔ Mogą szarżować:",
   "⚙ Canticle: Machine Vengeance against “{name}” (re-roll hits)": "⚙ Kantyk: Zemsta Maszyn przeciw „{name}” (przerzut trafień)",
+  "⚙ Canticle: Machine Vengeance against “{name}” (re-roll hits; out of reach this turn)": "⚙ Kantyk: Zemsta Maszyn przeciw „{name}” (przerzut trafień; poza zasięgiem w tej turze)",
   "⚙ Canticle: Mantra of Discipline (+1 OC and Leadership within 6″)": "⚙ Kantyk: Mantra Dyscypliny (+1 OC i Przywództwo w 6″)",
   "⚙ Canticle: Shroudpsalm (Stealth within 6″)": "⚙ Kantyk: Psalm Całunu (Skrytość w 6″)",
   "⚙ Defend the Divine Work": "⚙ Obrona boskiego dzieła",

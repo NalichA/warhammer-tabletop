@@ -5,13 +5,13 @@
 // check itself (`canticleAura`) lives in gameState.ts, because Objective Control needs it. See docs/mechanicus.md.
 import { tr } from '../../i18n/index'
 import { EPS } from '../geometry/geometry'
-import { alive, atHalfStrength, CANTICLE_RANGE, hasAbility, hasKeyword, isDestroyed, profileOf, unitDistance, unitNearObjective } from '../gameState'
+import { alive, atHalfStrength, CANTICLE_RANGE, hasAbility, hasKeyword, isDestroyed, profileOf, unitDistance, unitNearObjective, weaponsOf } from '../gameState'
 import type { Canticle, GameState, ModelState, PlayerId, UnitState } from '../types'
 
 /** Mechanicus Bodyguard: Lone Operative while within 3″ of another friendly ADEPTUS MECHANICUS unit. */
 export const BODYGUARD_RANGE = 3
-/** How far from the friendly army an enemy unit counts as a Machine Vengeance candidate (the reach of most guns). */
-const VENGEANCE_REACH = 24
+/** The reach of a unit with no ranged weapon in a Machine Vengeance pick: its Move plus the longest charge. */
+const CHARGE_REACH = 12
 
 const AM = 'ADEPTUS MECHANICUS'
 
@@ -71,13 +71,27 @@ export function vengeanceMarks(s: GameState): { source: UnitState; target: UnitS
 
 const woundsLeft = (u: UnitState) => alive(u).reduce((a, m) => a + m.wounds, 0)
 
-/** Enemy units worth a Machine Vengeance, best first: within 24″ of a friendly Mechanicus unit, the toughest (most wounds
- * left) first, then the nearest to Cawl. */
+/** How far unit `f` can reach an enemy before the canticle ends: its Move plus its longest ranged weapon, or plus a 12″
+ * charge when it has no ranged weapon. A rough reach for picking the target: Advance, terrain and line of sight aside. */
+function attackReach(f: UnitState): number {
+  return Math.max(0, ...alive(f).map((m) => {
+    const ranged = weaponsOf(m).flatMap((w) => w.profiles).flatMap((p) => (p.range === 'melee' ? [] : [p.range]))
+    return profileOf(m).m + (ranged.length ? Math.max(...ranged) : CHARGE_REACH)
+  }))
+}
+
+/** Whether some friendly Mechanicus unit of `u`'s army can move and shoot (or charge) enemy `e` before the next Command phase. */
+export function vengeanceInReach(s: GameState, u: UnitState, e: UnitState): boolean {
+  return s.units.some((f) => f.owner === u.owner && !isDestroyed(f) && !f.embarkedIn && hasKeyword(f, AM) && unitDistance(f, e) <= attackReach(f) + EPS)
+}
+
+/** Every enemy unit on the board as a Machine Vengeance target (the rule has no range), best first: the ones the army can
+ * reach this turn, the toughest (most wounds left) first, then the nearest to Cawl. */
 export function vengeanceTargets(s: GameState, u: UnitState): UnitState[] {
-  const friends = s.units.filter((x) => x.owner === u.owner && !isDestroyed(x) && hasKeyword(x, AM))
+  const reach = new Map(s.units.map((e) => [e.id, vengeanceInReach(s, u, e)]))
   return s.units
-    .filter((e) => e.owner !== u.owner && !isDestroyed(e) && friends.some((f) => unitDistance(f, e) <= VENGEANCE_REACH + EPS))
-    .sort((a, b) => woundsLeft(b) - woundsLeft(a) || unitDistance(u, a) - unitDistance(u, b))
+    .filter((e) => e.owner !== u.owner && !isDestroyed(e) && !e.embarkedIn)
+    .sort((a, b) => Number(reach.get(b.id)) - Number(reach.get(a.id)) || woundsLeft(b) - woundsLeft(a) || unitDistance(u, a) - unitDistance(u, b))
 }
 
 export interface CanticleChoice {
@@ -97,7 +111,7 @@ export function chooseCanticle(s: GameState, u: UnitState): CanticleChoice {
   const holding = near.filter((x) => s.objectives.some((o) => unitNearObjective(x, o))).length
   const shaky = near.filter((x) => atHalfStrength(x) && !x.battleShocked).length
   if (holding + shaky >= 2) return { canticle: 'mantraDiscipline', why: tr('{n} friendly units nearby hold objectives or test for Battle-shock', { n: holding + shaky }) }
-  const t = vengeanceTargets(s, u)[0]
+  const t = vengeanceTargets(s, u).find((e) => vengeanceInReach(s, u, e))
   if (t) return { canticle: 'machineVengeance', targetId: t.id, why: tr('“{name}” is the toughest enemy in reach ({w} wounds left)', { name: t.name, w: woundsLeft(t) }) }
   if (near.length >= 2) return { canticle: 'shroudpsalm', why: tr('no enemy in reach; {n} units near Cawl get Stealth', { n: near.length }) }
   return { canticle: 'mantraDiscipline', why: tr('no enemy in reach') }
