@@ -1,6 +1,6 @@
-# Tabletop Trainer 40K
+# Tabletop Trainer
 
-**Tabletop Trainer 40K** is a free, open-source, browser-based training tool for learning the rules of the tabletop wargame *Warhammer 40,000* (11th edition). You play a small battle on a virtual table against an AI opponent, or online against a friend, and the app explains every step: what you may do next, why an action is illegal, and how each dice roll was decided.
+**Tabletop Trainer** is a free, open-source, browser-based training tool for learning the rules of the tabletop wargame *Warhammer 40,000* (11th edition). You play a small battle on a virtual table against an AI opponent, or online against a friend, and the app explains every step: what you may do next, why an action is illegal, and how each dice roll was decided.
 
 > **Disclaimer.** This is an independent, unofficial fan project. It is **not affiliated with, endorsed by or sponsored by Games Workshop**. Warhammer, Warhammer 40,000 and the names of its factions, units and rules are trademarks of Games Workshop Limited. The project ships no official images, logos or rules text, and its license does not cover those trademarks. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and [docs/LICENSING.md](docs/LICENSING.md).
 
@@ -9,7 +9,7 @@
 - **Deterministic rules engine.** `src/game` is pure TypeScript with no React or browser APIs. State changes only through validated commands (`validate` / `apply`), and dice come from a seeded roller kept in the game state, so games can be saved, replayed and tested exactly (a golden-master test plays AI-vs-AI games).
 - **AI opponents.** A utility AI with two levels and faction-specific weights, which goes through the same command path as the human and explains each decision.
 - **Online play for two people.** Peer-to-peer over WebRTC (PeerJS), host-authoritative, with no server of our own ([docs/multiplayer.md](docs/multiplayer.md)).
-- **Six armies** that can fight each other, and a hand-drawn SVG board and token set.
+- **Six armies** that can fight each other, and an original SVG board and token set drawn in code.
 - **Four interface languages** (English, Ukrainian, Polish, Russian) chosen from the system language ([docs/i18n.md](docs/i18n.md)).
 - Vitest unit, engine, AI, multiplayer and UI tests; React 19, Konva, Zustand, Vite and TypeScript (strict).
 
@@ -60,7 +60,7 @@ The board tells you what to do next. The banner at the top shows the next step, 
 
 ## Miniature art
 
-Tokens use original SVG portraits (Ultramarine-style blue and gold Space Marines, green Orks). You can replace them with **photos of your own painted models** via “📷 Model photos” in the unit card. Official Games Workshop images are not bundled; see [docs/assets.md](docs/assets.md).
+Tokens use original blueprint-style SVG drawings generated as code with an AI assistant (blue and gold Space Marines, green Orks); none is traced from Games Workshop material. You can replace them with **photos of your own painted models** via “📷 Model photos” in the unit card. Official Games Workshop images are not bundled; see [docs/assets.md](docs/assets.md).
 
 ## Architecture
 
@@ -151,4 +151,4 @@ PeerJS / WebRTC, host-authoritative, no backend of our own. See [docs/multiplaye
 - Contributions are welcome: read [CONTRIBUTING.md](CONTRIBUTING.md) (fork, branch, Pull Request, game-rules accuracy) and the [Code of Conduct](CODE_OF_CONDUCT.md).
 - Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
 - Maintainers: [docs/OPEN_SOURCE_MAINTENANCE.md](docs/OPEN_SOURCE_MAINTENANCE.md).
-- License: source code and documentation are under the [Apache License 2.0](LICENSE) (see [NOTICE](NOTICE)). Third-party components and what the license does not cover are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Warhammer 40,000 and related names are trademarks of Games Workshop; this project is unofficial and the license does not cover them.
+- License: the original source code and documentation are under the [Apache License 2.0](LICENSE) (see [NOTICE](NOTICE)). What the license does not cover (game data, names, third-party marks) is in [LICENSE-SCOPE.md](LICENSE-SCOPE.md). Third-party components and what the license does not cover are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Warhammer 40,000 and related names are trademarks of Games Workshop; this project is unofficial and the license does not cover them.

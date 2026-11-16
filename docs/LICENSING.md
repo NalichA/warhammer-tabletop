@@ -16,7 +16,7 @@ Apache-2.0 is already in the repository (the maintainer asked for it), so this d
 |---|---|---|
 | Source code in `src/`, build and CI configuration | Yes | Original code. Subject to the authorship question below |
 | Documentation in `README.md` and `docs/` | Yes | Original text. It cites external sources but does not copy them |
-| Token art, board drawing, emblem (SVG and canvas code) | Yes | Original; `docs/assets.md` records that nothing is traced from Games Workshop art |
+| Token art and board drawing (SVG and canvas code) | Yes | Original; `docs/assets.md` records that nothing is traced from Games Workshop art and that the code was written with an AI assistant |
 | Translations in `src/i18n` | Yes | Original wording |
 | `public/favicon.svg` | No, MIT (Vite) | Listed in [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md); can be replaced by an original icon |
 | npm dependencies | No, their own licenses | Not stored in the repository; listed in THIRD_PARTY_NOTICES.md |
@@ -38,6 +38,12 @@ Apache-2.0 is already in the repository (the maintainer asked for it), so this d
 3. **Game data.** Decide whether to keep the current datasheet data as is, to ask for permission, or to reduce it to what can be defended (own wording, minimal facts).
 4. **Contributor terms.** `CONTRIBUTING.md` states that contributions are licensed under Apache-2.0 (inbound = outbound, as in Apache-2.0 section 5). A Developer Certificate of Origin sign-off or a CLA is not required and not recommended for a project this size.
 5. **Favicon.** Optional: replace the Vite template favicon with an original one so every shipped asset is original or has a one-line notice.
+
+## Update 2026-11-15
+
+- The repository is already public and the app is deployed, so the "settle first" advice below was not followed in time. The decisions since then are recorded in `LICENSE-SCOPE.md` (what Apache-2.0 does not cover), the in-app "About & legal" notice, and the removal of the Adeptus Mechanicus emblem and the "40K" product name.
+- Authorship numbers on `main` (122 commits): `NalichA` 63, `Oleksandr Andriichuk` 42, `Dru1DD` 17. 81 of the 122 commits carry a `Co-Authored-By` trailer of an AI assistant. The written agreement of `NalichA` is still to be obtained; the copyright line now reads "Dru1DD and contributors".
+- A preliminary legal audit (not legal advice) recommends a consultation with a Polish IP lawyer before further promotion.
 
 ## Until these are settled
 

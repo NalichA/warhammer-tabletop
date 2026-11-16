@@ -596,17 +596,6 @@ function kastelan(gear: KastGear): string {
     <circle cx="76" cy="66" r="11" ${f(BRASS, 0.3)}/><circle cx="76" cy="66" r="6" ${rd(0.55)}/><path d="M60 62 L68 64" stroke-width="3.4"/>${shoulder}`, false)
 }
 
-/** Faction emblem (shown on the army selection card): a toothed cog around a mechanical skull. */
-export const mechanicusEmblem = () =>
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="49" fill="#2a0c0c"/>
-  <g stroke="${BRASS}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
-    ${cog(50, 50, 40, 16)}<circle cx="50" cy="50" r="27" fill="#8a1f1f" fill-opacity="0.8"/>
-    <path d="M32 46 Q32 28 50 28 Q68 28 68 46 Q68 54 62 58 V66 H38 V58 Q32 54 32 46 Z" fill="${BRASS}" fill-opacity="0.85" stroke="#2a0c0c"/>
-    <circle cx="42" cy="46" r="5" fill="#2a0c0c"/><circle cx="58" cy="46" r="5" fill="#8a1f1f" stroke="#2a0c0c"/>
-    <path d="M50 52 L47 60 H53 Z" fill="#2a0c0c" stroke="none"/><path d="M42 66 V60 M46 66 V61 M50 66 V61 M54 66 V61 M58 66 V60" stroke="#2a0c0c" stroke-width="1.6"/>
-    <path d="M20 20 L34 34 M80 20 L66 34" fill="none" opacity="0.5"/>
-  </g></svg>`
-
 type HoundGear = 'pistols' | 'carbine'
 
 /** Serberys Sulphurhound: a mechanical hound seen from above, a Skitarius rider on its back, sulphur cone ahead. */

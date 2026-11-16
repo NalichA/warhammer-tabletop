@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { OnlineBanner, OnlineHeader, OnlineScreen } from './multiplayer/OnlineScreen'
 import { joinRoom, leaveRoom, openOnlineMenu, parseRoomCode, savedGuestRoom, useMp } from './multiplayer/session'
-import { FACTION_EMBLEM, FACTION_STYLE, tokenImageFor } from './assets/manifest'
+import { FACTION_STYLE, tokenImageFor } from './assets/manifest'
 import { FACTION_NAME } from './game/data/datasheets'
 import { armyPoints, fmtPoints, POINTS_SOURCE, unitCost } from './game/data/points'
 import { actor } from './game/engine'
@@ -16,6 +16,7 @@ import { ArmyBuilder } from './ui/ArmyBuilder'
 import { LAYOUT_IDS, LAYOUT_NAME, MAP_IDS, MAPS, PATROL_LAYOUT_NAME } from './game/scenarios/strikeForce'
 import { armyUnits, battleListProblems } from './ui/armyUnits'
 import { BattleOverDialog } from './ui/BattleOverDialog'
+import { LegalDialog } from './ui/LegalDialog'
 import { ReactionPrompt } from './ui/ReactionPrompt'
 import { ChargeConfirm } from './ui/ChargeConfirm'
 import { RerollPrompt } from './ui/RerollPrompt'
@@ -118,6 +119,7 @@ function PointsMatchup({ settings }: { settings: Settings }) {
 
 function StartScreen() {
   const st = useStore()
+  const [legalOpen, setLegalOpen] = useState(false)
   const { human, opponent, scenarioId } = st.settings
   const auto = deserialize(readStorage(AUTOSAVE_KEY))
   const manual = deserialize(readStorage(MANUAL_KEY))
@@ -129,7 +131,7 @@ function StartScreen() {
     <div className="min-h-full bg-stone-900 p-4 text-stone-100">
       <div className="mx-auto max-w-5xl rounded-lg border border-stone-700 bg-stone-800 p-6 shadow-xl">
         <div className="flex items-start justify-between gap-3">
-          <h1 className="text-2xl font-bold">{tr('Tabletop Trainer 40K')}</h1>
+          <h1 className="text-2xl font-bold">{tr('Tabletop Trainer')}</h1>
           <label className="flex shrink-0 items-center gap-2 text-sm text-stone-400">
             {tr('Language')}
             <select className="input !mt-0 !w-auto" value={locale} onChange={(e) => setLocale(e.target.value as Locale)}>
@@ -138,7 +140,7 @@ function StartScreen() {
           </label>
         </div>
         <p className="mt-1 text-sm text-stone-400">
-          {tr('A training simulator for the Warhammer 40,000 rules (11th edition). Six armies: Space Marines, Orks, Tyranids, Necrons, Aeldari, Adeptus Mechanicus. An unofficial hobby project.')}
+          {tr('A training simulator for the Warhammer 40,000 rules (11th edition). An unofficial hobby project.')}
         </p>
 
         {auto.ok && !auto.file.state.winner && (
@@ -161,7 +163,6 @@ function StartScreen() {
                 style={{ background: FACTION_STYLE[p].primary + '55' }}
               >
                 <div className="mb-2 flex items-center gap-3">
-                  {FACTION_EMBLEM[p] && <img src={FACTION_EMBLEM[p]} alt="" className="h-12 w-12 shrink-0 rounded-full border-2 border-amber-500" />}
                   <div className="flex -space-x-3">
                     {faces.map((id) => (
                       <img key={id} src={tokenImageFor(id, st.customTokens)} alt="" className="h-10 w-10 rounded-full border-2 border-stone-900" />
@@ -268,7 +269,12 @@ function StartScreen() {
         </p>
         {listIssues.length > 0 && <p className="mt-2 text-sm text-rose-300">{tr('Fix the army roster to start: {item}', { item: listIssues[0] })}</p>}
         {st.message && <p className="mt-2 text-sm text-rose-300">{st.message.text}</p>}
+        <p className="mt-4 border-t border-stone-700 pt-2 text-[11px] text-stone-500">
+          {tr('Unofficial fan project, not affiliated with Games Workshop.')}{' '}
+          <button className="underline" onClick={() => setLegalOpen(true)}>{tr('About & legal')}</button>
+        </p>
       </div>
+      {legalOpen && <LegalDialog onClose={() => setLegalOpen(false)} />}
     </div>
   )
 }
@@ -296,13 +302,14 @@ function GameScreen() {
   const st = useStore()
   const game = st.game!
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [legalOpen, setLegalOpen] = useState(false)
   // dialog dismissed for this exact finished game object; any new/loaded game re-arms it
   const [overClosedFor, setOverClosedFor] = useState<typeof game | null>(null)
   const lastDice = game.diceLog.at(-1)
   return (
     <div className="grid h-full grid-rows-[auto_1fr_auto] bg-stone-900 text-stone-100">
       <header className="flex flex-wrap items-center gap-2 border-b border-stone-700 bg-stone-950 px-3 py-2">
-        <h1 className="mr-2 font-bold"><span className="hidden 2xl:inline">{tr('Tabletop Trainer')} </span>40K</h1>
+        <h1 className="mr-2 font-bold">{tr('Tabletop Trainer')}</h1>
         {st.deploying ? (
           <span className="rounded bg-yellow-600 px-2 py-0.5 text-sm font-semibold text-black">{tr('Setup: army placement')}</span>
         ) : (
@@ -328,6 +335,7 @@ function GameScreen() {
           <button className="btn" disabled={!!st.shared} onClick={() => st.load()} title={tr('Load')} aria-label={tr('Load')}>📂<span className="hidden 2xl:inline"> {tr('Load')}</span></button>
           {game.winner && <button className="btn" onClick={() => setOverClosedFor(null)} title={tr('Battle results')} aria-label={tr('Results')}>🏆<span className="hidden 2xl:inline"> {tr('Results')}</span></button>}
           <button className="btn" onClick={() => setSettingsOpen(true)} title={tr('Settings')} aria-label={tr('Settings')}>⚙<span className="hidden 2xl:inline"> {tr('Settings')}</span></button>
+          <button className="btn" onClick={() => setLegalOpen(true)} title={tr('About & legal')} aria-label={tr('About & legal')}>ⓘ</button>
           <button className="btn" onClick={() => (st.shared ? window.confirm(tr('Leave the online game? Your opponent will see that you disconnected.')) && leaveRoom() : st.quit())} title={st.shared ? tr('Leave the game') : tr('Main menu')} aria-label={tr('Menu')}>☰<span className="hidden 2xl:inline"> {tr('Menu')}</span></button>
         </div>
       </header>
@@ -358,6 +366,7 @@ function GameScreen() {
       {game.pendingReroll?.player === st.settings.human && !game.winner && !st.review && <RerollPrompt game={game} human={st.settings.human} />}
       {hyperPending(game) && st.settings.human === 'tyranids' && !st.review && <HyperAdaptationPrompt game={game} />}
       {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
+      {legalOpen && <LegalDialog onClose={() => setLegalOpen(false)} />}
     </div>
   )
 }

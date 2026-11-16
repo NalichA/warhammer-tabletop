@@ -5,7 +5,6 @@ import { decide } from '../game/ai/ai'
 import { actor } from '../game/engine'
 import { sidesOf } from '../game/gameState'
 import { FACTIONS, type PlayerId } from '../game/types'
-import { FACTION_EMBLEM } from '../assets/manifest'
 import { AUTOSAVE_KEY, useStore } from '../store'
 
 // Konva needs a real canvas; the board is covered by engine tests.
@@ -36,7 +35,6 @@ describe('faction selection screen', () => {
     const am = list('Адептус Механикус')
     for (const t of [/Техножрец-Доминус/, /Техножрец-Манипулус/, /Скитарии-рейнджеры/, /Скитарии-авангард/, /Катафроны-пробойщики/, /Катафроны-разрушители/, /Сикарии-диверсанты/, /Роботы Кастелан/]) expect(am.getByText(t)).toBeInTheDocument()
     expect(am.getByText(/Всего моделей: 36/)).toBeInTheDocument()
-    expect(FACTION_EMBLEM.adeptus_mechanicus).toMatch(/^data:image\/svg\+xml/)
   })
 
   it('shows unit and army points and warns about a lopsided pairing', () => {

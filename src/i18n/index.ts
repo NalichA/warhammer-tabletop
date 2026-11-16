@@ -77,5 +77,5 @@ export function setLocale(next: Locale): void {
 /** Apply the locale to the document (`<html lang>` and the title). */
 export function applyDocumentLocale(): void {
   document.documentElement.lang = locale
-  document.title = tr('Tabletop Trainer 40K')
+  document.title = tr('Tabletop Trainer')
 }

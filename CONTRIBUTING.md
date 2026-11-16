@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in Tabletop Trainer 40K. This is a small independent hobby project, so the process is light: fork, branch, open a Pull Request, pass CI.
+Thanks for your interest in Tabletop Trainer. This is a small independent hobby project, so the process is light: fork, branch, open a Pull Request, pass CI.
 
 By contributing you agree that your contribution is licensed under the project's license ([Apache License 2.0](LICENSE)) and that you have the right to submit it. Please also read the [Code of Conduct](CODE_OF_CONDUCT.md).
 

@@ -1,6 +1,6 @@
 # Third-party notices
 
-Tabletop Trainer 40K is an independent, unofficial fan project. It is **not affiliated with, endorsed by or sponsored by Games Workshop Limited**. Warhammer, Warhammer 40,000, the names of its factions, units, weapons and rules terms, and related marks are trademarks or registered trademarks of Games Workshop Limited. They are used here only to identify the game this tool helps people learn. The project's license does not grant any rights to them. See [docs/LICENSING.md](docs/LICENSING.md).
+Tabletop Trainer is an independent, unofficial fan project. It is **not affiliated with, endorsed by or sponsored by Games Workshop Limited**. Warhammer, Warhammer 40,000, the names of its factions, units, weapons and rules terms, and related marks are trademarks or registered trademarks of Games Workshop Limited. They are used here only to identify the game this tool helps people learn. The project's license does not grant any rights to them. See [docs/LICENSING.md](docs/LICENSING.md).
 
 The project's own source code is licensed under the [Apache License 2.0](LICENSE). This file lists what is not covered by that license.
 
@@ -32,7 +32,7 @@ Development tools (Vite, Vitest, TypeScript, oxlint, Tailwind CSS, Testing Libra
 | File | Origin | License |
 |---|---|---|
 | `public/favicon.svg` | Vite project template | MIT, Copyright (c) VoidZero Inc. and Vite contributors |
-| Token art, board art and the Adeptus Mechanicus emblem (`src/assets/tokenArt.ts`, `src/ui/Board.tsx`) | Hand-written SVG and canvas code | Original to this project, under the project license. Not traced from Games Workshop artwork or photos (see [docs/assets.md](docs/assets.md)) |
+| Token art and board art (`src/assets/tokenArt.ts`, `src/ui/Board.tsx`) | SVG and canvas drawing code, written with an AI assistant (see [docs/assets.md](docs/assets.md)) | Original to this project, under the project license. Not traced from Games Workshop artwork or photos (see [docs/assets.md](docs/assets.md)) |
 
 No Games Workshop images, logos, artwork, 3D models, fonts or rulebook text are included in the repository.
 

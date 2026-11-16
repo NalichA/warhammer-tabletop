@@ -3,7 +3,7 @@
 // portrait (src/assets/tokenArt.ts). No third-party art — see docs/assets.md.
 
 import type { PlayerId, TerrainKind } from '../game/types'
-import { BLUEPRINT_LINE, mechanicusEmblem, portraitFor, svgDataUrl } from './tokenArt'
+import { BLUEPRINT_LINE, portraitFor } from './tokenArt'
 import { VARIANT_FROM } from '../game/data/wargearExtra'
 import { tr } from '../i18n/index'
 
@@ -23,9 +23,6 @@ export const FACTION_STYLE: Record<PlayerId, { primary: string; secondary: strin
   aeldari: { primary: '#5a3f9c', secondary: '#ddd0f7', accent: '#f0c75e' },
   adeptus_mechanicus: { primary: '#8a1f1f', secondary: '#f1d9a6', accent: '#e0a63a' },
 }
-
-/** Original faction emblem for the army selection card (factions without one show only their unit portraits). */
-export const FACTION_EMBLEM: Partial<Record<PlayerId, string>> = { adeptus_mechanicus: svgDataUrl(mechanicusEmblem()) }
 
 export const TOKENS: Record<string, TokenStyle> = {
   lieutenant: { fill: '#1f4e9c', stroke: '#e4b33a', text: '#ffffff', label: tr('Lt') },

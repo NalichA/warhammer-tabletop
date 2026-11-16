@@ -14,12 +14,21 @@ describe('UI', () => {
 
   it('starts a game in Russian with both factions selectable', () => {
     render(<App />)
-    expect(screen.getByText('Тренировочный стол 40K')).toBeInTheDocument()
+    expect(screen.getByText('Тренировочный стол')).toBeInTheDocument()
     fireEvent.click(screen.getByText('Орки'))
     fireEvent.click(screen.getByText('Начать новую битву'))
     expect(useStore.getState().settings.human).toBe('orks')
     expect(screen.getByTestId('board')).toBeInTheDocument()
     expect(screen.getAllByText(/Бойз/).length).toBeGreaterThan(0)
+  })
+
+  it('shows the unofficial notice and opens the legal dialog', () => {
+    render(<App />)
+    expect(screen.getByText(/не связан с Games Workshop/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'О проекте и правовая информация' }))
+    expect(screen.getByRole('dialog')).toHaveTextContent(/Games Workshop Limited/)
+    fireEvent.click(screen.getByRole('button', { name: 'Закрыть' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('shows a specific reason for an unavailable action', () => {
